@@ -1,17 +1,14 @@
 # VarGeno
 Accelerating SNP genotyping from whole genome sequencing data for bedside diagnostics
 
-# Prerequisite
-- A modern, C++11 ready compiler such as `g++` version 4.9 or higher.
-- The cmake build system. (*for SDSL library. If SDSL library already installed, cmake is not needed*)
+# Prerequisites
+- A modern, C++11 ready compiler, such as `g++` version 4.9 or higher.
+- The cmake build system (*only necessary to install SDSL library. If SDSL library already installed, cmake is not needed*)
 - A 64-bit operating system. Either Mac OS X or Linux are currently supported.
-- 63 GB Memory for human whole genome sequencing SNP genotyping
 
 # Quick Install
 
-## Install SDSL
-
-To download and install the SDSL library use the following commands.
+VarGeno requires the SDSL library. If you do not have it already installed, please use the following commands.
 
 ```
 git clone https://github.com/simongog/sdsl-lite.git
@@ -20,8 +17,7 @@ cd sdsl-lite
 ```
 This installs the sdsl library into the `include` and `lib` directories in your home directory.
 
-
-## Install VarGeno
+To install VarGeno itself,
 
 ```
 git clone https://github.com/medvedevgroup/vargeno.git
@@ -29,56 +25,48 @@ cd vargeno
 make all
 ```
 
-You should see `vargeno`, `vqv`, `gbf` in vargeno directory.
+You should then see `vargeno`, `vqv`, `gbf` in vargeno directory. To verify that your installation is correct, you can run a toy example using the instructions in [test.md](https://github.com/medvedevgroup/vargeno/blob/master/test/test.md) .
+
 
 # Quick Usage
 
 VarGeno takes as input:
-1. `ref.fa` reference genome sequence in FASTA file format.
-2. list of known SNPs: `snp.txt` in [UCSC text file format](http://genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_group=varRep&hgta_track=snp141Common&hgta_table=snp141Common&hgta_doSchema=describe+table+schema).
-> *VCF format support coming soon*
-3. `reads.fq` sequencing reads from donor genome in FASTQ file format. If you have multiple FASTQ files, please `cat` them into one file.
+1. A reference genome sequence in FASTA file format.
+2. A list of SNPs to be genotyped, in [UCSC text file format](http://genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_group=varRep&hgta_track=snp141Common&hgta_table=snp141Common&hgta_doSchema=describe+table+schema). VCF format support coming soon
+3. Sequencing reads from the donor genome in FASTQ file format. If you have multiple FASTQ files, please `cat` them into one file.
 
-> *Note here `ref.fa`, `snp.txt` and `reads.fq` are examples of filename. Your files do not need to be renamed as these.*
+Before genotyping an individual, you must construct indices for the reference using the following commands:
+```
+vargeno ucscd ref.fa snp.txt ref.dict snp.dict
+gbf ucsc ref.fa snp.txt ref.bf snp.bf
+```
+This constructs the reference dictionaries `ref.dict` and `snp.dict`, the reference Bloom filters `ref.bf` and `snp.dict`, and also a file with the chromosome lengths `ref.fa.chrlens`.
 
-## Generate Dictionaries and Bloom filters
+To perform the genotyping, you can use either VarGeno-QV:
+```vqv geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf result.out```
+or VarGeno:
+```vargeno geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf result.out```
 
-1. generate dictionaries `ref.dict`, `snp.dict` and also chrlens file `ref.fa.chrlens`
+Note: VarGeno-QV is 3x faster than VarGeno, with only a slight decrease in accuracy (0.04% in our experiments). Unless you have strict requirement for accuracy, we recommend using VarGeno-QV instead of VarGeno 
 
-```vargeno ucscd ref.fa snp.txt ref.dict snp.dict```
-
-2. generate Bloom filters `ref.bf` and `snp.dict`
-
-```gbf ucsc ref.fa snp.txt ref.bf snp.bf```
-
-## Use VarGeno
-> *Note: VarGeno-QV is 3x faster than VarGeno, with slight accuracy decrease(0.04% in our experiment). Unless you have strict requirement of accuracy, we recommend using VarGeno-QV instead of VarGeno for quick variant genotyping.*
-
-```vargeno geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf vargeno.out```
-
-Here `vargeno.out` contains the variant genotyping result
-
-## Use VarGeno-QV
-
-```vqv geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf vqv.out```
-
-Here `vqv.out` contains the variant genotyping result
 
 ## Output format
 
-VarGeno variant genotyping output files contains 4 fields splited by `tab`:
+VarGeno variant genotyping output files contains 4 tab-separated fields for each SNP: 
 
   1. chromosome id
-  2. genome position, 1-based. Here the first two fields together can uniquely identify a SNP in `snp.vcf`
+  2. genome position (1-based): The first two fields together uniquely identify a SNP in the input SNP list.
   3. genotypes: `0/0`, `0/1` or `1/1` 
-  4. quality score in [0,1], higher quality score means more confident genotyping result
+  4. quality score in [0,1]: higher quality score means more confident genotyping result
 
-# Experiments
+# Experiments in paper
 
-To repeat experiments in our paper, please follow the instructions in [experiment.md](https://github.com/medvedevgroup/vargeno/blob/master/experiment/experiment.md) .
+To repeat the experiments in our paper, please follow the instructions in [experiment.md](https://github.com/medvedevgroup/vargeno/blob/master/experiment/experiment.md) .
 
-# Test VarGeno
+# Citation
 
-To run VarGeno on test dataset, please follow the instructions in [test.md](https://github.com/medvedevgroup/vargeno/blob/master/test/test.md) .
+If you use VarGeno in your research, please cite
+* Chen Sun and Paul Medvedev, Accelerating SNP genotyping from whole genome sequencing data for bedside diagnostics
 
-
+VarGeno algorithm is built on top of the LAVA and its code is based on LAVA's code
+* Shajii A, Yorukoglu D, William Yu Y, Berger B, [Fast genotyping of known SNPs through approximate k-mer matching,](https://academic.oup.com/bioinformatics/article/32/17/i538/2450790) Bioinformatics. 2016 32(17):i538-i544. Code is available [here](https://github.com/arshajii/lava/).
