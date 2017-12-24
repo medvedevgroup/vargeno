@@ -25,7 +25,7 @@ cd vargeno
 make all
 ```
 
-You should then see `vargeno`, `vqv`, `gbf` in vargeno directory. To verify that your installation is correct, you can run a toy example using [these](https://github.com/medvedevgroup/vargeno/blob/master/test/test.md) instructions.
+You should then see `vargeno`, `vqv`, `gbf` in vargeno directory. To verify that your installation is correct, you can run the toy example below. 
 
 
 # Quick Usage
@@ -62,6 +62,27 @@ VarGeno variant genotyping output files contains 4 tab-separated fields for each
   2. genome position (1-based): The first two fields together uniquely identify a SNP in the input SNP list.
   3. genotypes: `0/0`, `0/1` or `1/1` 
   4. quality score in [0,1]: higher quality score means more confident genotyping result
+
+# Example
+
+In this example, we genotype 100 SNPs on human chromosome 22 with a small subset of 1000 Genome Project Illumina sequencing reads. The whole process should finish in around a minute and requries 34 GB RAM. Suppose VarGeno is installed in directory `$VARGENO`.
+
+1. go to VarGeno directory
+```
+cd $VARGENO/test
+```
+
+2. pre-process the reference and SNP list to generate indices:
+```
+$VARGENO/vargeno ucscd hg19.fa snp.txt ref.dict snp.dict
+$VARGENO/gbf ucsc hg19.fa snp.txt ref.bf snp.bf
+```
+
+3. genotype variants:
+```
+$VARGENO/vqv geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf result.out
+```
+
 
 # Experiments in paper
 
