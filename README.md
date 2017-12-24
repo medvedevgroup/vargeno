@@ -43,9 +43,13 @@ gbf ucsc ref.fa snp.txt ref.bf snp.bf
 This constructs the reference dictionaries `ref.dict` and `snp.dict`, the reference Bloom filters `ref.bf` and `snp.dict`, and also a file with the chromosome lengths `ref.fa.chrlens`.
 
 To perform the genotyping, you can use either VarGeno-QV:
-```vqv geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf result.out```
+```
+vqv geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf result.out
+```
 or VarGeno:
-```vargeno geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf result.out```
+```
+vargeno geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf result.out
+```
 
 Note: VarGeno-QV is 3x faster than VarGeno, with only a slight decrease in accuracy (0.04% in our experiments). Unless you have strict requirement for accuracy, we recommend using VarGeno-QV instead of VarGeno 
 
