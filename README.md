@@ -68,5 +68,5 @@ To repeat the experiments in our paper, please follow the instructions in [exper
 If you use VarGeno in your research, please cite
 * Chen Sun and Paul Medvedev, Accelerating SNP genotyping from whole genome sequencing data for bedside diagnostics
 
-VarGeno algorithm is built on top of the LAVA and its code is based on LAVA's code
+VarGeno's algorithm is built on top of LAVA's. Its code is built on top of LAVA's and it reuses a lot of LAVA's code. It uses some code from the [AllSome project](https://github.com/medvedevgroup/bloomtree-allsome).
 * Shajii A, Yorukoglu D, William Yu Y, Berger B, [Fast genotyping of known SNPs through approximate k-mer matching,](https://academic.oup.com/bioinformatics/article/32/17/i538/2450790) Bioinformatics. 2016 32(17):i538-i544. Code is available [here](https://github.com/arshajii/lava/).
