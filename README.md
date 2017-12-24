@@ -25,7 +25,7 @@ cd vargeno
 make all
 ```
 
-You should then see `vargeno`, `vqv`, `gbf` in vargeno directory. To verify that your installation is correct, you can run a toy example using the instructions in [test.md](https://github.com/medvedevgroup/vargeno/blob/master/test/test.md) .
+You should then see `vargeno`, `vqv`, `gbf` in vargeno directory. To verify that your installation is correct, you can run a toy example using [these](https://github.com/medvedevgroup/vargeno/blob/master/test/test.md) instructions.
 
 
 # Quick Usage
@@ -40,7 +40,7 @@ Before genotyping an individual, you must construct indices for the reference us
 vargeno ucscd ref.fa snp.txt ref.dict snp.dict
 gbf ucsc ref.fa snp.txt ref.bf snp.bf
 ```
-This constructs the reference dictionaries `ref.dict` and `snp.dict`, the reference Bloom filters `ref.bf` and `snp.dict`, and also a file with the chromosome lengths `ref.fa.chrlens`.
+This constructs the reference dictionaries `ref.dict` and `snp.dict`, the reference Bloom filters `ref.bf` and `snp.bf`, and also a file with the chromosome lengths `ref.fa.chrlens`.
 
 To perform the genotyping, you can use either VarGeno-QV:
 ```
@@ -51,7 +51,7 @@ or VarGeno:
 vargeno geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf result.out
 ```
 
-Note: VarGeno-QV is 3x faster than VarGeno, with only a slight decrease in accuracy (0.04% in our experiments). Unless you have strict requirement for accuracy, we recommend using VarGeno-QV instead of VarGeno 
+VarGeno-QV is 3x faster than VarGeno, with only a slight decrease in accuracy (0.04% in our experiments). Unless you have strict requirement for accuracy, we recommend using VarGeno-QV instead of VarGeno 
 
 
 ## Output format
