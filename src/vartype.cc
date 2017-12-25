@@ -1748,6 +1748,9 @@ static void print_help(void)
 	                "<input FASTA> <input SNPs> <output ref dict> <output SNP dict>\n");
 	fprintf(stderr, "geno    Perform genotyping            "
 	                "<input ref dict> <input SNP dict> <input FASTQ> <chrlens file> <ref Bloom filter> <snp Bloom filter> <output file>\n");
+	fprintf(stderr, "------  -----------                   ----------\n");
+	fprintf(stderr, "Note: to generate Bloom filters, please use command 'gbf'\n");
+	fprintf(stderr, "Note: to run VarGeno-QV, please use command 'vqv'\n");
 }
 
 static void arg_check(int argc, int expected)
