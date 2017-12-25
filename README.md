@@ -80,7 +80,7 @@ $VARGENO/gbf ucsc chr22.fa snp.txt ref.bf snp.bf
 
 3. genotype variants:
 ```
-$VARGENO/vqv geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf result.out
+$VARGENO/vqv geno ref.dict snp.dict reads.fq chr22.fa.chrlens ref.bf snp.bf result.out
 ```
 
 
