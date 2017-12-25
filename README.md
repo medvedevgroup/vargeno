@@ -67,7 +67,7 @@ VarGeno variant genotyping output files contains 4 tab-separated fields for each
 
 In this example, we genotype 100 SNPs on human chromosome 22 with a small subset of 1000 Genome Project Illumina sequencing reads. The whole process should finish in around a minute and requries 34 GB RAM. Suppose VarGeno is installed in directory `$VARGENO`.
 
-1. go to VarGeno directory
+1. go to test data directory
 ```
 cd $VARGENO/test
 ```
