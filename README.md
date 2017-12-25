@@ -74,8 +74,8 @@ cd $VARGENO/test
 
 2. pre-process the reference and SNP list to generate indices:
 ```
-$VARGENO/vargeno ucscd hg19.fa snp.txt ref.dict snp.dict
-$VARGENO/gbf ucsc hg19.fa snp.txt ref.bf snp.bf
+$VARGENO/vargeno ucscd chr22.fa snp.txt ref.dict snp.dict
+$VARGENO/gbf ucsc chr22.fa snp.txt ref.bf snp.bf
 ```
 
 3. genotype variants:
