@@ -53,12 +53,3 @@ mv SNPs142_hg19_Common.filt.txt snp.txt
 
 ```$VARGENO/vqv geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf vqv.out```
 > **Do not forget the command `geno` after `vqv`**
-
-## Output format
-
-VarGeno variant genotyping output files contains 4 fields splited by `tab`:
-
-  1. chromosome id
-  2. genome position, 1-based. Here the first two fields together can uniquely identify a SNP in `snp.vcf`
-  3. genotypes: `0/0`, `0/1` or `1/1` 
-  4. quality score in [0,1], higher quality score means more confident genotyping result
