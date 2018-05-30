@@ -305,13 +305,10 @@ void iterate_ref_dict(kmer_t key,
 #endif
 	
 	const void * pointer_base = &ref_dict[lo];
-	char* pointer_base_helper = (char*) pointer_base;
 	size_t element_size = sizeof(*ref_dict);
 
 	for (uint32_t i = lo; i < hi; i++) {
-		char* pointer_location_helper = pointer_base_helper + (i - lo) * element_size;
-		//const void * pointer_location = pointer_base + (i - lo) * element_size;
-		const void * pointer_location = (void *) pointer_location_helper;
+		const void * pointer_location = pointer_base + (i - lo) * element_size;
 		const uint32_t entry_lo = ((struct kmer_entry *)pointer_location)->kmer_lo;		
 		int diff_base_pos = -1;
 		if (one_hamming_distance_32(kmer_lo, entry_lo, diff_base_pos)) {
@@ -397,13 +394,10 @@ void iterate_snp_dict(kmer_t key,
 #endif
 
 	const void * pointer_base = &snp_dict[lo];
-	char* pointer_base_helper = (char*) pointer_base;
 	size_t element_size = sizeof(*snp_dict);
 
   for (int i = lo; i < hi; i++) {
-  	char* pointer_location_helper = pointer_base_helper + (i - lo) * element_size;
-	//const void * pointer_location = pointer_base + (i - lo) * element_size;
-	const void * pointer_location = (void *) pointer_location_helper;
+	const void * pointer_location = pointer_base + (i - lo) * element_size;
 	const uint64_t entry_lo = ((struct snp_kmer_entry *)pointer_location)->kmer_lo40;
 	int diff_base_pos = -1;
     if (one_hamming_distance_64(kmer_lo, entry_lo, diff_base_pos)) {
@@ -1754,9 +1748,6 @@ static void print_help(void)
 	                "<input FASTA> <input SNPs> <output ref dict> <output SNP dict>\n");
 	fprintf(stderr, "geno    Perform genotyping            "
 	                "<input ref dict> <input SNP dict> <input FASTQ> <chrlens file> <ref Bloom filter> <snp Bloom filter> <output file>\n");
-	fprintf(stderr, "------  -----------                   ----------\n");
-	fprintf(stderr, "Note: to generate Bloom filters, please use command 'gbf'\n");
-	fprintf(stderr, "Note: to run VarGeno-QV, please use command 'vqv'\n");
 }
 
 static void arg_check(int argc, int expected)

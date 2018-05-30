@@ -75,7 +75,7 @@ typedef struct {
 
 void index_table_clear_index(IndexTable *index_table, uint32_t index);
 void index_table_clear(IndexTable *index_table);
-void index_table_add(IndexTable *index_table, uint32_t index);
+//void index_table_add(IndexTable *index_table, uint32_t index);
 
 void index_table_clear_index(IndexTable *index_table, uint32_t index)
 {
@@ -92,44 +92,7 @@ void index_table_clear(IndexTable *index_table)
 	}
 }
 
-void index_table_add(IndexTable *index_table, uint32_t index)
-{
-	size_t slot_index = index % INDEX_TABLE_SLOT_COUNT;
-	IndexTableSlot *slot = &index_table->table[slot_index];
-	IndexTableEntry *target = NULL;
-
-	for (unsigned short i = 0; i < slot->count; i++) {
-		IndexTableEntry *e = &slot->entries[i];
-		if (e->index == index) {
-			++e->freq;
-			target = e;
-			break;
-		}
-	}
-
-	if (target == NULL) {
-#if DEBUG
-		assert(slot->count < INDEX_TABLE_ENTRY_DEPTH);
-#endif
-		slot->entries[slot->count] = (IndexTableEntry){.index = index, .freq = 1};
-		target = &slot->entries[slot->count];
-		++slot->count;
-	}
-
-	if (index_table->best == NULL) {
-		index_table->best = target;
-		index_table->ambiguous = false;
-	} else if (target == index_table->best) {
-		index_table->ambiguous = false;
-	} else if (target->freq == index_table->best->freq) {
-		index_table->ambiguous = true;
-	} else if (target->freq > index_table->best->freq) {
-		index_table->best = target;
-		index_table->ambiguous = false;
-	}
-}
-
-void improved_index_table_add(IndexTable *index_table, uint32_t index, uint32_t kmer_pos, unordered_map<uint32_t, unordered_set<uint32_t>> & index_2_kmer_pos_set, bool is_neighbor=true)
+void index_table_add(IndexTable *index_table, uint32_t index, uint32_t kmer_pos, unordered_map<uint32_t, unordered_set<uint32_t>> & index_2_kmer_pos_set, bool is_neighbor=true)
 {
     if(is_neighbor){
         if (index_2_kmer_pos_set.find(index) == index_2_kmer_pos_set.end()){
@@ -353,10 +316,34 @@ void iterate_ref_dict(kmer_t key,
 #endif
 	
 	const void * pointer_base = &ref_dict[lo];
+	char* pointer_base_helper = (char*) pointer_base;
 	size_t element_size = sizeof(*ref_dict);
 
+#if REF_LITE
 	for (uint32_t i = lo; i < hi; i++) {
-		const void * pointer_location = pointer_base + (i - lo) * element_size;
+		char* pointer_location_helper = pointer_base_helper + (i - lo) * element_size;
+		//const void * pointer_location = pointer_base + (i - lo) * element_size;
+		const void * pointer_location = (void *) pointer_location_helper;
+		const uint64_t entry_lo = ((struct kmer_entry *)pointer_location)->kmer_lo40;
+		//[TODO] here we need to make sure pointer_location->kmer_lo contains 40 bits	
+		int diff_base_pos = -1;
+		if (one_hamming_distance_64(kmer_lo, entry_lo, diff_base_pos)) {
+			ref_hit_set[ref_hit_set_size] = &(ref_dict[i]);
+			// construct the whole kmer
+			neighbors[ref_hit_set_size] = kmer_hi;
+			neighbors[ref_hit_set_size] <<= 40;
+			neighbors[ref_hit_set_size] |= entry_lo;
+			// for debug
+			//assert(diff_base_pos >= 0);
+			ref_diff_base_pos_list[ref_hit_set_size] = diff_base_pos;
+			ref_hit_set_size++;
+		}
+	}
+#else
+	for (uint32_t i = lo; i < hi; i++) {
+		char* pointer_location_helper = pointer_base_helper + (i - lo) * element_size;
+		//const void * pointer_location = pointer_base + (i - lo) * element_size;
+		const void * pointer_location = (void *) pointer_location_helper;
 		const uint32_t entry_lo = ((struct kmer_entry *)pointer_location)->kmer_lo;		
 		int diff_base_pos = -1;
 		if (one_hamming_distance_32(kmer_lo, entry_lo, diff_base_pos)) {
@@ -364,13 +351,13 @@ void iterate_ref_dict(kmer_t key,
 			neighbors[ref_hit_set_size] = kmer_hi;
 			neighbors[ref_hit_set_size] <<= 32;
 			neighbors[ref_hit_set_size] |= entry_lo;
-#if DEBUG
-			assert(diff_base_pos >= 0);
-#endif
+			// for debug
+			//assert(diff_base_pos >= 0);
 			ref_diff_base_pos_list[ref_hit_set_size] = diff_base_pos;
 			ref_hit_set_size++;
 		}
 	}
+#endif
 
 	return;
 }
@@ -442,10 +429,13 @@ void iterate_snp_dict(kmer_t key,
 #endif
 
 	const void * pointer_base = &snp_dict[lo];
+	char* pointer_base_helper = (char*) pointer_base;
 	size_t element_size = sizeof(*snp_dict);
 
   for (int i = lo; i < hi; i++) {
-	const void * pointer_location = pointer_base + (i - lo) * element_size;
+  	char* pointer_location_helper = pointer_base_helper + (i - lo) * element_size;
+	//const void * pointer_location = pointer_base + (i - lo) * element_size;
+	const void * pointer_location = (void *) pointer_location_helper;
 	const uint64_t entry_lo = ((struct snp_kmer_entry *)pointer_location)->kmer_lo40;
 	int diff_base_pos = -1;
     if (one_hamming_distance_64(kmer_lo, entry_lo, diff_base_pos)) {
@@ -526,7 +516,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 	}
 
 #if REF_LITE
-	ref_jumpgate = malloc(POW_2_24 * sizeof(*ref_jumpgate));
+	ref_jumpgate = (uint32_t*)malloc(POW_2_24 * sizeof(*ref_jumpgate));
 #else
 	ref_jumpgate = (uint32_t*)malloc(POW_2_32 * sizeof(*ref_jumpgate));
 #endif
@@ -724,7 +714,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 			snp_aux_table[i].pos_list[j] = pos;
 			snp_aux_table[i].snp_list[j] = snp;
 
-		    /*	
+			/*
 			if (pos != 0) {
 				const unsigned snp_info_ref = SNP_INFO_REF(snp);
 				const unsigned snp_info_pos = SNP_INFO_POS(snp);  // relative to k-mer
@@ -733,24 +723,23 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 				if (snp_pos >= pileup_size) {
 					pileup_size = (snp_pos + 1) * sizeof(*pileup_table);
 					printf("Re-allocing pileup table to %lu entries...\n", pileup_size);
-					pileup_table = (struct packed_pileup_entry*)realloc(pileup_table, pileup_size);
+					pileup_table = realloc(pileup_table, pileup_size);
 					assert(pileup_table);
 				}
 
-				//pileup_table[snp_pos].ref = snp_info_ref;
-				//pileup_table[snp_pos].alt = kmer_get_base(kmer, snp_info_pos);
-				//pileup_table[snp_pos].ref_freq = ref_freq;
-				//pileup_table[snp_pos].alt_freq = alt_freq;
-				
-                pileup_table[snp_pos].ref = 3;
-				pileup_table[snp_pos].alt = 3;
-				pileup_table[snp_pos].ref_freq = 0;
-				pileup_table[snp_pos].alt_freq = 0;
+				pileup_table[snp_pos].ref = snp_info_ref;
+				pileup_table[snp_pos].alt = kmer_get_base(kmer, snp_info_pos);
+				pileup_table[snp_pos].ref_freq = ref_freq;
+				pileup_table[snp_pos].alt_freq = alt_freq;
 			}
 			*/
 		}
 	}
 
+bool is_ref_lite = false;
+#if REF_LITE
+	is_ref_lite = true;
+#endif
 
 	/* === Walk FASTQ File === */
 #define BUF_SIZE 1024
@@ -775,7 +764,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 		kmer_t kmer;
 		uint32_t position;  // 1-based position of read based on kmer hit
 		uint32_t kmer_pos;  // 1-based position of k-mer
-		uint32_t modified_pos; // 0-based position in range of [0.32)
+		uint32_t modified_pos;
 #if DEBUG
 		bool is_neighbor;
 #endif
@@ -824,6 +813,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 
 		bool revcompl = false;
 		unordered_map<uint32_t, unordered_set<uint32_t>> index_2_kmer_pos_set;
+
 		/*
 		 * We process reads in 32-base chunks, so we trim off
 		 * any remainder if the read length is not a multiple
@@ -927,8 +917,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 					                                                .is_neighbor = false
 #endif
 					                                            };
-					//index_table_add(&index_table, read_pos);
-					improved_index_table_add(&index_table, read_pos, ref_hit->pos, index_2_kmer_pos_set, false);
+					index_table_add(&index_table, read_pos, ref_hit->pos, index_2_kmer_pos_set, false);
 #if DEBUG
 					++unambig_hits;
 #endif
@@ -950,8 +939,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 						                                                .is_neighbor = false
 #endif
 						                                            };
-						//index_table_add(&index_table, read_pos);
-						improved_index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set, false);
+						index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set, false);
 					}
 				} else {
 					assert(0);
@@ -974,8 +962,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 					                                                .is_neighbor = false
 #endif
 					                                            };
-					//index_table_add(&index_table, read_pos);
-					improved_index_table_add(&index_table, read_pos, snp_hit->pos, index_2_kmer_pos_set, false);
+					index_table_add(&index_table, read_pos, snp_hit->pos, index_2_kmer_pos_set, false);
 #if DEBUG
 					++unambig_hits;
 #endif
@@ -997,8 +984,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 						                                                .is_neighbor = false
 #endif
 						                                            };
-						//index_table_add(&index_table, read_pos);
-						improved_index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set, false);
+						index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set, false);
 					}
 				} else {
 					assert(0);
@@ -1015,13 +1001,14 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 			uint32_t ref_search_bound = 64;
 			uint32_t snp_search_bound = 64;
 
+#if REF_LITE
+			uint64_t ref_kmer_lo = LO40(kmer);
+			if (ref_bf->check_value(ref_kmer_lo) == 0) ref_search_bound = 40;
+#else
 			uint32_t ref_kmer_lo = LO(kmer);
-			uint64_t snp_kmer_lo = LO40(kmer);
-
-			//uint32_t ref_kmer_hi_pos = BloomFilter::hash32(ref_kmer_hi);
-			//uint32_t snp_kmer_hi_pos = BloomFilter::hash24(snp_kmer_hi);
-
 			if (ref_bf->check_value(ref_kmer_lo) == 0) ref_search_bound = 32;
+#endif
+			uint64_t snp_kmer_lo = LO40(kmer);
 			if (snp_bf->check_value(snp_kmer_lo) == 0) snp_search_bound = 40;
 
 			// uint32_t max_search_bound = max(ref_search_bound, snp_search_bound);
@@ -1071,8 +1058,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 										.is_neighbor = true
 #endif
 								};
-								//index_table_add(&index_table, read_pos);
-								improved_index_table_add(&index_table, read_pos, ref_hit->pos, index_2_kmer_pos_set);
+								index_table_add(&index_table, read_pos, ref_hit->pos, index_2_kmer_pos_set);
 								//benchmark_ref_neighbors.insert(neighbor);
 #if DEBUG
 								++unambig_hits;
@@ -1106,8 +1092,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 												.is_neighbor = true
 #endif
 										};
-										//index_table_add(&index_table, read_pos);
-										improved_index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
+										index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
 										//benchmark_ref_neighbors.insert(neighbor);
 									}
 								}
@@ -1132,8 +1117,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 										.is_neighbor = true
 #endif
 								};
-								//index_table_add(&index_table, read_pos);
-								improved_index_table_add(&index_table, read_pos, snp_hit->pos, index_2_kmer_pos_set);
+								index_table_add(&index_table, read_pos, snp_hit->pos, index_2_kmer_pos_set);
 								//benchmark_snp_neighbors.insert(neighbor);
 #if DEBUG
 								++unambig_hits;
@@ -1161,8 +1145,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 #endif
 										};
 
-										//index_table_add(&index_table, read_pos);
-										improved_index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
+										index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
 										//benchmark_snp_neighbors.insert(neighbor);
 									}
 								}
@@ -1211,9 +1194,8 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 #endif
 						) {
 						const uint32_t read_pos = ref_hit->pos - offset;
-						ref_hit_contexts[n_ref_hits++] = (kmer_context) { .kmer = neighbor, .position = read_pos, .kmer_pos = ref_hit->pos, .modified_pos = diff_base_pos,};
-						//index_table_add(&index_table, read_pos);
-						improved_index_table_add(&index_table, read_pos, ref_hit->pos, index_2_kmer_pos_set);
+						ref_hit_contexts[n_ref_hits++] = (kmer_context) { .kmer = neighbor, .position = read_pos, .kmer_pos = ref_hit->pos, .modified_pos = diff_base_pos};
+						index_table_add(&index_table, read_pos, ref_hit->pos, index_2_kmer_pos_set);
 						//query_ref_neighbors.insert(neighbor);
 					}
 					else if (ref_hit->ambig_flag == FLAG_AMBIGUOUS) {
@@ -1232,9 +1214,8 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 #endif
 								) {
 								const uint32_t read_pos = pos - offset;
-								ref_hit_contexts[n_ref_hits++] = (kmer_context) {.kmer = neighbor, .position = read_pos, .kmer_pos = pos, .modified_pos = diff_base_pos,};
-								//index_table_add(&index_table, read_pos);
-								improved_index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
+								ref_hit_contexts[n_ref_hits++] = (kmer_context) {.kmer = neighbor, .position = read_pos, .kmer_pos = pos, .modified_pos = diff_base_pos};
+								index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
 								//query_ref_neighbors.insert(neighbor);
 							}
 						}
@@ -1252,9 +1233,8 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 
 					if (snp_hit->ambig_flag == FLAG_UNAMBIGUOUS && SNP_INFO_POS(snp_hit->snp) != diff_base_pos) {
 						const uint32_t read_pos = snp_hit->pos - offset;
-						snp_hit_contexts[n_snp_hits++] = (kmer_context) {.kmer = neighbor, .position = read_pos, .kmer_pos = snp_hit->pos, .modified_pos = diff_base_pos,};
-						//index_table_add(&index_table, read_pos);
-						improved_index_table_add(&index_table, read_pos, snp_hit->pos, index_2_kmer_pos_set);
+						snp_hit_contexts[n_snp_hits++] = (kmer_context) {.kmer = neighbor, .position = read_pos, .kmer_pos = snp_hit->pos, .modified_pos = diff_base_pos};
+						index_table_add(&index_table, read_pos, snp_hit->pos, index_2_kmer_pos_set);
 						//query_snp_neighbors.insert(neighbor);
 					}
 					else if (snp_hit->ambig_flag == FLAG_AMBIGUOUS) {
@@ -1267,9 +1247,8 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 							if (pos == 0) break;
 							if (SNP_INFO_POS(snp_list[i]) != diff_base_pos) {
 								const uint32_t read_pos = pos - offset;
-								snp_hit_contexts[n_snp_hits++] = (kmer_context) {.kmer = neighbor, .position = read_pos, .kmer_pos = pos, .modified_pos = diff_base_pos,};
-								//index_table_add(&index_table, read_pos);
-								improved_index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
+								snp_hit_contexts[n_snp_hits++] = (kmer_context) {.kmer = neighbor, .position = read_pos, .kmer_pos = pos, .modified_pos = diff_base_pos};
+								index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
 								//query_snp_neighbors.insert(neighbor);
 							}
 						}
@@ -1278,8 +1257,10 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 			} // end of else corresponds to if (block_size >= BLOCK_SIZE_THRESHOLD)
 
 			
-			/* loop over left half of int64 / right half of kmer */
+			/* loop over left/high half of int64 / right half of kmer */
 			for (unsigned i = 32; i < 64; i += 2) {
+
+				if(i >= ref_search_bound && i >= snp_search_bound) break;
 
 				const unsigned diff_base_pos = i / 2;
 				const uint64_t mask = 0x3UL << i;
@@ -1291,8 +1272,11 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 					const kmer_t neighbor = (kmer & ~mask) | (j << i);
 
 					// search ref
-					if (i < ref_search_bound) {
-						struct kmer_entry *ref_hit = query_ref_dict(neighbor, ref_jumpgate, ref_dict, ref_dict_size);
+					//[TODO] here need code review to review it again
+
+					if ( (i < ref_search_bound) && (is_ref_lite == false || i>=40 || block_size >= BLOCK_SIZE_THRESHOLD) ) {
+						
+                        struct kmer_entry *ref_hit = query_ref_dict(neighbor, ref_jumpgate, ref_dict, ref_dict_size);
 						const size_t ref_hit_diff_loc = (ref_hit != NULL &&
 							ref_hit->pos != POS_AMBIGUOUS &&
 							ref_hit->ambig_flag == FLAG_UNAMBIGUOUS) ?
@@ -1319,8 +1303,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 										.is_neighbor = true
 #endif
 								};
-								//index_table_add(&index_table, read_pos);
-								improved_index_table_add(&index_table, read_pos, ref_hit->pos, index_2_kmer_pos_set);
+								index_table_add(&index_table, read_pos, ref_hit->pos, index_2_kmer_pos_set);
 #if DEBUG
 								++unambig_hits;
 #endif
@@ -1353,8 +1336,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 												.is_neighbor = true
 #endif
 										};
-										//index_table_add(&index_table, read_pos);
-										improved_index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
+										index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
 									}
 								}
 							}
@@ -1390,8 +1372,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 										.is_neighbor = true
 #endif
 								};
-								//index_table_add(&index_table, read_pos);
-								improved_index_table_add(&index_table, read_pos, snp_hit->pos, index_2_kmer_pos_set);
+								index_table_add(&index_table, read_pos, snp_hit->pos, index_2_kmer_pos_set);
 #if DEBUG
 								++unambig_hits;
 #endif
@@ -1418,8 +1399,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 #endif
 										};
 
-										//index_table_add(&index_table, read_pos);
-										improved_index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
+										index_table_add(&index_table, read_pos, pos, index_2_kmer_pos_set);
 									}
 							}
 						}
@@ -1828,15 +1808,19 @@ static inline struct call choose_best_genotype(const int ref_cnt,
 
 static void print_help(void)
 {
-	fprintf(stderr, "Usage: vargeno <option> [option parameters ...]\n");
+	fprintf(stderr, "Usage: vargeno_lite <option> [option parameters ...]\n");
 	fprintf(stderr, "Option  Description                   Parameters\n");
 	fprintf(stderr, "------  -----------                   ----------\n");
 	fprintf(stderr, "ucscd    Generate dictionary files, if known SNPs are in UCSC text file format     "
 	                "<input FASTA> <input SNPs> <output ref dict> <output SNP dict>\n");
 	fprintf(stderr, "vcfd    Generate dictionary files, if known SNPs are in VCF file format    "
 	                "<input FASTA> <input SNPs> <output ref dict> <output SNP dict>\n");
+	fprintf(stderr, "filt    Filter reference dictionary   "
+		            "<ref dict> <snp_pos file> <output ref dict>\n");
 	fprintf(stderr, "geno    Perform genotyping            "
 	                "<input ref dict> <input SNP dict> <input FASTQ> <chrlens file> <ref Bloom filter> <snp Bloom filter> <output file>\n");
+	fprintf(stderr, "------  -----------                   ----------\n");
+	fprintf(stderr, "Note: to generate Bloom filters, please use command 'gbf_lite'\n");
 }
 
 static void arg_check(int argc, int expected)
@@ -1951,11 +1935,18 @@ int main(const int argc, const char *argv[])
 		string snp_bf_filename = argv[7];
 		const char *out_filename = argv[8];
 
-		ref_bf = new BloomFilter(BFGenerator::REF_BF_RANGE);
-		snp_bf = new BloomFilter(BFGenerator::SNP_BF_RANGE);
+#if REF_LITE
+		ref_bf = new BloomFilter(BFGenerator::SNP_BF_RANGE);
+#else
+        ref_bf = new BloomFilter(BFGenerator::REF_BF_RANGE);
+#endif
+        snp_bf = new BloomFilter(BFGenerator::SNP_BF_RANGE);
 
 		ref_bf->load(ref_bf_filename);
 		snp_bf->load(snp_bf_filename);
+
+// [TODO] here we'd better check if ref_bf contains 40 bits instead of 32 bits elements
+
 
 		//FILE *out_file = fopen(out_filename, "w");
 		//assert(out_file);

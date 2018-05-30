@@ -1,0 +1,145 @@
+#include "sbt_util.h"
+#include <sstream>
+#include <fenv.h>
+#include <signal.h>
+
+std::string quote(std::string in) {
+    // TODO: handle quotes embedded in input string
+    return "\"" + in + "\"";
+}
+
+
+// removes the directory name and optionally the given suffix.
+std::string test_basename(const std::string & str, const std::string & suff) {
+    auto p = str.rfind("/");
+    std::string s = (p == std::string::npos) ? str : str.substr(p+1);
+    auto end = s.size() - suff.size();
+    if (s.substr(end) == suff) {
+        return s.substr(0, s.size() - suff.size());
+    }
+    return s;
+}
+
+std::string nosuffix(const std::string & str, const std::string & suff) {
+    std::string s = str;
+    auto end = s.size() - suff.size();
+    if (s.substr(end) == suff) {
+        return s.substr(0, s.size() - suff.size());
+    }
+    return s;
+
+}
+
+
+std::string TrimRight(const std::string & str) {
+    std::string tmp = str;
+    return tmp.erase(tmp.find_last_not_of(" ") + 1);
+}
+
+std::string TrimLeft(const std::string & str) {
+    std::string tmp = str;
+    return tmp.erase(0, tmp.find_first_not_of(" "));
+}
+
+std::string Trim(const std::string & str) {
+    std::string tmp = str;
+    return TrimLeft(TrimRight(str));
+}
+
+//
+// Die with the message
+//
+void DIE(const std::string & msg) {
+    std::cerr << "fatal: " << msg << std::endl;
+    exit(3);
+}
+
+void WARN(const std::string & msg) {
+    std::cerr << "warning: " << msg << std::endl;
+}
+
+//
+// Die, with a message, if bad is true
+//
+void DIE_IF(bool bad, const std::string & msg) {
+    if(bad) DIE(msg);
+}
+
+//
+// Write out a number and the backspace over it
+//
+void WriteStatusNumber(std::ostream & out, unsigned n) {
+    std::ostringstream s;
+    s<<n;
+    out << s.str();
+    for(unsigned i = 0; i < s.str().length(); i++) out << "\b";
+}
+
+//
+// Return the same string UPPERCASED
+//
+std::string Upcase(const std::string & s) {
+    std::string out;
+    for(unsigned i = 0; i < s.length(); i++) out += toupper(s[i]);
+    return out;
+}
+
+std::string SetAsString(const std::set<std::string> & s, const std::string & delim) {
+    std::string tmp = "";
+    for(std::set<std::string>::iterator I = s.begin();
+        I != s.end();
+        ++I)
+    {
+        tmp += ((I == s.begin())?"":delim) + *I;
+    }
+    return tmp;
+}
+
+//
+// Split string str into fields separated by sep
+// field numbers start at 0
+//
+int SplitString(const std::string & str1, char sep, std::vector<std::string> & fields) {
+    std::string str = str1;
+    fields.clear();
+    std::string::size_type pos;
+    while((pos=str.find(sep)) != std::string::npos) {
+        fields.push_back(str.substr(0,pos));
+        str.erase(0,pos+1);  
+    }
+    fields.push_back(str);
+    return fields.size();
+}
+
+
+std::string VectorAsString(const std::vector<std::string> & in, const std::string & delim) {
+    std::ostringstream oss;
+    for(std::vector<std::string>::const_iterator I = in.begin();
+        I != in.end();
+        ++I)
+    {
+        if(I != in.begin()) oss << delim;
+        oss << *I;
+    }
+    return oss.str();
+}
+
+
+// from http://stackoverflow.com/questions/8095088/how-to-check-string-start-in-c
+bool starts_with(const std::string& haystack, const std::string& needle) {
+    return (needle.length() <= haystack.length())
+        && (equal(needle.begin(), needle.end(), haystack.begin()));
+}
+
+// http://stackoverflow.com/questions/874134/find-if-string-ends-with-another-string-in-c
+bool ends_with(const std::string& haystack, const std::string& needle) {
+    if (needle.size() > haystack.size()) return false;
+    return std::equal(needle.rbegin(), needle.rend(), haystack.rbegin());
+}
+
+// http://stackoverflow.com/questions/5840148/how-can-i-get-a-files-size-in-c
+std::ifstream::pos_type filesize(std::string filename)
+{
+    std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
+    return in.tellg(); 
+}

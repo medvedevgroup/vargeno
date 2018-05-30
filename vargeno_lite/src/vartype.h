@@ -5,7 +5,7 @@
 
 /////////////////////////////
 #define DEBUG        0
-#define REF_LITE     0
+#define REF_LITE     1
 #define PCOMPACT     0
 #define GEN_FLT_DATA 0
 
@@ -14,7 +14,7 @@
 #define AVG_COV        7.1
 #define MAX_MATES_DIST 2000
 
-#define QUALITY_SCORE	'8'
+#define QUALITY_SCORE '8'
 /////////////////////////////
 
 #define BASE_A 0x0

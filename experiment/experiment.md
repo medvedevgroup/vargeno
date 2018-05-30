@@ -17,7 +17,7 @@ wget http://cb.csail.mit.edu/cb/lava/data/hg19.fa.gz
 gunzip hg19.fa.gz	
 ```
 
-2. reads file in FASTQ format
+2. 6X reads file in FASTQ format
 ```
 wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/phase3/data/NA12878/sequence_read/SRR622461_1.filt.fastq.gz
 wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/phase3/data/NA12878/sequence_read/SRR622461_2.filt.fastq.gz
@@ -49,7 +49,27 @@ mv SNPs142_hg19_Common.filt.txt snp.txt
 ```$VARGENO/vargeno geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf vargeno.out```
 > **Do not forget the command `geno` after `vargeno`**
 
-## Using VarGeno-QV
+# Other data
 
-```$VARGENO/vqv geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf vqv.out```
-> **Do not forget the command `geno` after `vqv`**
+1. Affy SNP list
+
+You can download Affy SNP list with command:
+```
+wget http://cb.csail.mit.edu/cb/lava/data/Affymetrix_6_SNPs.txt
+```
+
+2. High coverage data
+
+The high coverage read data (15X, 25X and 51X) in our experiments is downloaded from GIAB FTP(ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/).
+
+Please read the README file in above GIAB FTP link before download.
+
+You can download the read data in our experiments with commands :
+
+[Warning] the data is very huge (~500 GB), make sure you have enough free disk space.
+
+```
+wget -r ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/131219_D00360_005_BH814YADXX/
+
+wget -r ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/131219_D00360_006_AH81VLADXX/
+```

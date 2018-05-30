@@ -1,8 +1,8 @@
 LIBS = -lm
 CC = g++
-WARNINGS = -Wall -Wextra -Werror
-CFLAGS = -std=c++11 -march=native -O3 -flto -fstrict-aliasing $(WARNINGS)
-LFLAGS = -march=native -O3 -flto
+WARNINGS = -Wall
+CFLAGS = -g -std=c++11 -march=native -O3 -flto -fstrict-aliasing $(WARNINGS)
+LFLAGS = -g -march=native -O3 -flto
 
 SRCDIR = src
 OBJDIR = obj
@@ -15,7 +15,7 @@ SDSL_PATH=$(HOME)/lib
 # directory of TCLAP head file
 TCLAP_PATH=./include
 # also requires head file of roaring, sdsl, jellyfish, tclap in ~/include
-CXXFLAGS= -std=c++11 -pthread -Wall -O3 
+CXXFLAGS= -g -std=c++11 -pthread -Wall -O3 
 CXXFLAGS+=-I$(HOME)/include -I$(TCLAP_PATH)
 
 LD_LIB=-L $(SDSL_PATH)
@@ -24,7 +24,7 @@ LD_FLAG=-lsdsl -ldivsufsort -ldivsufsort64
 ################################ end bloom filter def ##################################
 
 .PHONY: all clean
-all: gbf vargeno
+all: gbf_lite vargeno_lite
 
 OBJECTS = $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(wildcard $(SRCDIR)/*.c))
 HEADERS = $(wildcard $(INCDIR)/*.h)
@@ -37,16 +37,16 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cc
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
-gbf: $(OBJDIR)/gbf.o $(OBJDIR)/generate_bf.o $(OBJDIR)/allsome_util.o $(OBJDIR)/util.o
+gbf_lite: $(OBJDIR)/gbf.o $(OBJDIR)/generate_bf.o $(OBJDIR)/allsome_util.o $(OBJDIR)/util.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LD_LIB) $(LD_FLAG)
 
 kmerc: $(OBJDIR)/kmerc.o $(OBJDIR)/kmer_counting.o $(OBJDIR)/generate_bf.o $(OBJDIR)/allsome_util.o $(OBJDIR)/util.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LD_LIB) $(LD_FLAG)
 
-vargeno: $(OBJDIR)/qv.o $(OBJDIR)/generate_bf.o $(OBJDIR)/allsome_util.o $(OBJECTS) 
-	$(CC) $(LFLAGS) $(CXXFLAGS) $(OBJDIR)/qv.o $(OBJDIR)/generate_bf.o $(OBJDIR)/allsome_util.o $(OBJECTS) $(LIBS) -o $@ $(LD_LIB) $(LD_FLAG)
+vargeno_lite: $(OBJDIR)/qv.o $(OBJDIR)/generate_bf.o $(OBJDIR)/allsome_util.o $(OBJDIR)/dict_filt.o $(OBJECTS) 
+	$(CC) $(LFLAGS) $(CXXFLAGS) $(OBJDIR)/qv.o $(OBJDIR)/generate_bf.o $(OBJDIR)/allsome_util.o $(OBJDIR)/dict_filt.o $(OBJECTS) $(LIBS) -o $@ $(LD_LIB) $(LD_FLAG)
 
 clean:
 	-rm -f $(OBJDIR)/*.o
-	-rm -f gbf
-	-rm -f vargeno
+	-rm -f gbf_lite
+	-rm -f vargeno_lite
