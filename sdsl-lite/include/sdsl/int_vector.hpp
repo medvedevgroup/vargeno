@@ -541,6 +541,15 @@ class int_vector
         //! Greater of equal operator
         bool operator>=(const int_vector& v) const;
 
+        //! bitwise-and-update operator
+        int_vector& operator&=(const int_vector& v);
+
+        //! bitwise-or-update equal operator
+        int_vector& operator|=(const int_vector& v);
+
+        //! bitwise-xor-update operator
+        int_vector& operator^=(const int_vector& v);
+
         //! Iterator that points to the first element of the int_vector.
         /*!  Time complexity guaranty is O(1).
          */
@@ -1250,7 +1259,7 @@ template<uint8_t t_width>
 inline int_vector<t_width>::int_vector(int_vector&& v) :
     m_size(v.m_size), m_data(v.m_data), m_width(v.m_width)
 {
-    v.m_data = nullptr; // ownership of v.m_data now transfered
+    v.m_data = nullptr; // ownership of v.m_data now transferred
     v.m_size = 0;
 }
 
@@ -1501,6 +1510,36 @@ template<uint8_t t_width>
 bool int_vector<t_width>::operator!=(const int_vector& v)const
 {
     return !(*this==v);
+}
+
+template<uint8_t t_width>
+int_vector<t_width>& int_vector<t_width>::operator&=(const int_vector& v)
+{
+    assert(bit_size() == v.bit_size());
+    assert(v.capacity() <= capacity());
+    for (uint64_t i=0; i<(v.capacity()>>6); ++i)
+        m_data[i] &= v.m_data[i];
+    return *this;
+}
+
+template<uint8_t t_width>
+int_vector<t_width>& int_vector<t_width>::operator|=(const int_vector& v)
+{
+    assert(bit_size() == v.bit_size());
+    assert(v.capacity() <= capacity());
+    for (uint64_t i=0; i<(v.capacity()>>6); ++i)
+        m_data[i] |= v.m_data[i];
+    return *this;
+}
+
+template<uint8_t t_width>
+int_vector<t_width>& int_vector<t_width>::operator^=(const int_vector& v)
+{
+    assert(bit_size() == v.bit_size());
+    assert(v.capacity() <= capacity());
+    for (uint64_t i=0; i<(v.capacity()>>6); ++i)
+        m_data[i] ^= v.m_data[i];
+    return *this;
 }
 
 template<uint8_t t_width>

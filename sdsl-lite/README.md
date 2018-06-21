@@ -112,14 +112,19 @@ home directory. A different location prefix can be specified as a parameter of
 the `install.sh` script:
 
 ```sh
-./install /usr/local/
+./install.sh /usr/local/
 ```
+
+To build a portable sdsl library without using `SSE4.2` and `AVX2` instructions, set `BUILD_PORTABLE` at build time, e.g. `BUILD_PORTABLE=1 ./install.sh` or `mkdir build && BUILD_PORTABLE=1 cmake ..`.
+These instructions are enabled by default if the processor of the build system supports them.
 
 To remove the library from your system use the provided uninstall script:
 
 ```sh
 ./uninstall.sh
 ```
+
+There is also a [Gentoo Ebuild for SDSL][EBUILD] by Mathias Weller.
 
 Getting Started
 ------------
@@ -221,7 +226,7 @@ following paper:
       ee        = {http://dx.doi.org/10.1007/978-3-319-07959-2_28}
     }
 
-A preliminary version if available [here on arxiv][SEAPAPER].
+A preliminary version is available [here on arxiv][SEAPAPER].
 
 ## External Resources used in SDSL
 
@@ -236,12 +241,13 @@ construction algorithms.
 Additionally, we use the [googletest][GTEST] framework to provide unit tests.
 Our visualizations are implemented using the [d3js][d3js]-library.
 
+
 Authors
 --------
 
 The main contributors to the library are:
 
-* [Johannes Bader] (https://github.com/olydis)
+* [Johannes Bader](https://github.com/olydis)
 * [Timo Beller](https://github.com/tb38)
 * [Simon Gog](https://github.com/simongog) (Creator)
 * [Matthias Petri](https://github.com/mpetri)
@@ -292,3 +298,4 @@ Feel free to contact any of the authors or create an issue on the
 [SEAPAPER]: http://arxiv.org/pdf/1311.1249v1.pdf "SDSL paper"
 [HB]: https://github.com/simongog/sdsl-lite/blob/hybrid_bitvector/include/sdsl/hybrid_vector.hpp "Hybrid bitevctor"
 [DOXYGENDOCS]: http://algo2.iti.kit.edu/gog/docs/html/index.html "API Reference"
+[EBUILD]: https://github.com/igel-kun/silly_ebuilds "Gentoo EBuild"

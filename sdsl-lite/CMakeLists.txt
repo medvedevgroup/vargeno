@@ -24,7 +24,7 @@ set(LIBRARY_VERSION_FULL "${LIBRARY_VERSION}.${LIBRARY_VERSION_PATCH}")
 
 
 option(CODE_COVERAGE "Set ON to add code coverage compile options" OFF)
-option(GENERATE_DOC "Set ON to genrate doxygen API reference in build/doc directory" OFF)
+option(GENERATE_DOC "Set ON to generate doxygen API reference in build/doc directory" OFF)
 
 # C++11 compiler Check
 if(NOT CMAKE_CXX_COMPILER_VERSION) # work around for cmake versions smaller than 2.8.10
@@ -32,6 +32,9 @@ if(NOT CMAKE_CXX_COMPILER_VERSION) # work around for cmake versions smaller than
 endif()
 if(CMAKE_CXX_COMPILER MATCHES ".*clang.*" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
       set(CMAKE_COMPILER_IS_CLANGXX 1)
+endif()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    set(CMAKE_COMPILER_IS_INTEL 1)
 endif()
 if( (CMAKE_COMPILER_IS_GNUCXX AND ${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS 4.7) OR
     (CMAKE_COMPILER_IS_CLANGXX AND ${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS 3.2))
@@ -53,15 +56,20 @@ else()
 		append_cxx_compiler_flags("-stdlib=libc++" "CLANG" CMAKE_CXX_FLAGS)
 		append_cxx_compiler_flags("-O3 -ffast-math -funroll-loops -D__extern_always_inline=\"extern __always_inline\" " "CLANG" CMAKE_CXX_OPT_FLAGS)
 	else()
-		append_cxx_compiler_flags("/EHsc" "MSVC" CMAKE_CXX_FLAGS)
-		append_cxx_compiler_flags("/Od" "MSVC" CMAKE_CXX_FLAGS_DEBUG)
-		append_cxx_compiler_flags("/Ox" "MSVC" CMAKE_CXX_FLAGS_RELEASE)
-        set(vars CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-        foreach(var ${vars})
-            string(REPLACE "/MD" "-MT" ${var} "${${var}}")
-        endforeach(var)
+        if( CMAKE_COMPILER_IS_INTEL )
+            append_cxx_compiler_flags("-std=c++11 -Wall -Wextra -DNDEBUG" "INTEL" CMAKE_CXX_FLAGS)
+            append_cxx_compiler_flags("-O3 -ffast-math -funroll-loops -no-inline-min-size -no-inline-max-size" "INTEL" CMAKE_CXX_OPT_FLAGS)
+        else()
+            append_cxx_compiler_flags("/EHsc" "MSVC" CMAKE_CXX_FLAGS)
+            append_cxx_compiler_flags("/Od" "MSVC" CMAKE_CXX_FLAGS_DEBUG)
+            append_cxx_compiler_flags("/Ox" "MSVC" CMAKE_CXX_FLAGS_RELEASE)
+            set(vars CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+            foreach(var ${vars})
+                string(REPLACE "/MD" "-MT" ${var} "${${var}}")
+            endforeach(var)
 
-		add_definitions("/DMSVC_COMPILER")
+            add_definitions("/DMSVC_COMPILER")
+        endif()
 	endif()
 endif()
 
@@ -76,11 +84,15 @@ endif()
 
 include(CheckSSE4_2)
 if( BUILTIN_POPCNT )
-    if( CMAKE_COMPILER_IS_GNUCXX )
-        append_cxx_compiler_flags("-msse4.2" "GCC" CMAKE_CXX_OPT_FLAGS)
-    else()
-        append_cxx_compiler_flags("-msse4.2" "CLANG" CMAKE_CXX_OPT_FLAGS)
-    endif()
+  if( CMAKE_COMPILER_IS_GNUCXX )
+    append_cxx_compiler_flags("-msse4.2 -march=native" "GCC" CMAKE_CXX_OPT_FLAGS)
+  endif()
+  if( CMAKE_COMPILER_IS_GNUCXX )
+    append_cxx_compiler_flags("-msse4.2 -march=native" "CLANG" CMAKE_CXX_OPT_FLAGS)
+  endif()
+  if( CMAKE_COMPILER_IS_INTEL )
+    append_cxx_compiler_flags("-msse4.2 -march=native" "INTEL" CMAKE_CXX_FLAGS)
+  endif()
 endif()
 
 # check for demangle support to get pretty C++ class names
@@ -130,5 +142,10 @@ ADD_CUSTOM_TARGET(uninstall-sdsl
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/CMakeModules/cmake_uninstall.cmake")
 
 target_include_directories(sdsl PUBLIC include)
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sdsl-lite.pc.cmake"
+               "${CMAKE_CURRENT_BINARY_DIR}/sdsl-lite.pc" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/sdsl-lite.pc"
+        DESTINATION "lib/pkgconfig")
 
 add_subdirectory(test)
