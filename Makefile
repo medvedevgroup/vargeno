@@ -1,6 +1,6 @@
 LIBS = -lm
 CC = g++
-WARNINGS = -Wall -Wextra -Werror
+WARNINGS = -Wall -Wextra
 CFLAGS = -std=c++11 -march=native -O3 -flto -fstrict-aliasing $(WARNINGS)
 LFLAGS = -march=native -O3 -flto
 

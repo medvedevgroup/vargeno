@@ -356,7 +356,7 @@ void iterate_ref_dict(kmer_t key,
 	size_t element_size = sizeof(*ref_dict);
 
 	for (uint32_t i = lo; i < hi; i++) {
-		const void * pointer_location = pointer_base + (i - lo) * element_size;
+		const void * pointer_location = &ref_dict[lo] + (i - lo) * element_size;
 		const uint32_t entry_lo = ((struct kmer_entry *)pointer_location)->kmer_lo;		
 		int diff_base_pos = -1;
 		if (one_hamming_distance_32(kmer_lo, entry_lo, diff_base_pos)) {
@@ -445,7 +445,7 @@ void iterate_snp_dict(kmer_t key,
 	size_t element_size = sizeof(*snp_dict);
 
   for (int i = lo; i < hi; i++) {
-	const void * pointer_location = pointer_base + (i - lo) * element_size;
+	const void * pointer_location = &snp_dict[lo] + (i - lo) * element_size;
 	const uint64_t entry_lo = ((struct snp_kmer_entry *)pointer_location)->kmer_lo40;
 	int diff_base_pos = -1;
     if (one_hamming_distance_64(kmer_lo, entry_lo, diff_base_pos)) {
@@ -1195,7 +1195,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 				for (int h = 0; h < ref_hit_set_size; h++) {
 					// get every ref_hit
 					struct kmer_entry *ref_hit = ref_hit_set[h];
-					int diff_base_pos = ref_diff_base_pos_list[h];
+					uint32_t diff_base_pos = ref_diff_base_pos_list[h];
 
 					const size_t ref_hit_diff_loc = (ref_hit != NULL && ref_hit->pos != POS_AMBIGUOUS && ref_hit->ambig_flag == FLAG_UNAMBIGUOUS) ? (ref_hit->pos + diff_base_pos) : 0;
 					// get the neighbor
@@ -1248,7 +1248,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 					struct snp_kmer_entry *snp_hit = snp_hit_set[h];
 					if (snp_hit == NULL || snp_hit->pos == POS_AMBIGUOUS) continue;
 					auto neighbor = snp_neighbors[h];
-					int diff_base_pos = snp_diff_base_pos_list[h];
+					uint32_t diff_base_pos = snp_diff_base_pos_list[h];
 
 					if (snp_hit->ambig_flag == FLAG_UNAMBIGUOUS && SNP_INFO_POS(snp_hit->snp) != diff_base_pos) {
 						const uint32_t read_pos = snp_hit->pos - offset;
