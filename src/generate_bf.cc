@@ -203,6 +203,7 @@ int BFGenerator::constructBfFromVcf(const string & vcf_filename, string bf_filen
 		if (line[0] == '#') continue;
 		vector<string> columns = split(line, '\t');
 		string chr_name = columns[0];
+		if(chr_name[0] != 'c') chr_name = "chr" + chr_name;
 		int pos = stoi(columns[1]) - 1; // 1-based to 0-based coordinate
 		string ref_seq = columns[3];
 		string alt_seq = columns[4];
@@ -268,7 +269,7 @@ int BFGenerator::constructBfFromVcf(const string & vcf_filename, string bf_filen
 	}
 
 	input.close();
-	std::cout << "[BloomFilter constructBfFromGenomeseq] bit vector: " << bf->count_ones() << "/" << bf->num_filter_bits() << std::endl;
+	std::cout << "[BloomFilter constructBfFromVCF] bit vector: " << bf->count_ones() << "/" << bf->num_filter_bits() << std::endl;
 	bf->save(bf_filename);
 	delete bf;
 
