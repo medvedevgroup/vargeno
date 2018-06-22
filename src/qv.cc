@@ -1831,16 +1831,16 @@ static void print_help(void)
 	fprintf(stderr, "Usage: vargeno <option> [option parameters ...]\n");
 	fprintf(stderr, "Option  Description                   Parameters\n");
 	fprintf(stderr, "------  -----------                   ----------\n");
-	fprintf(stderr, "ucscd    Generate dictionary files, if known SNPs are in UCSC text file format     "
-	                "<input FASTA> <input SNPs> <output ref dict> <output SNP dict>\n");
-	fprintf(stderr, "vcfd    Generate dictionary files, if known SNPs are in VCF file format    "
-	                "<input FASTA> <input SNPs> <output ref dict> <output SNP dict>\n");
-	fprintf(stderr, "ucscbf    Generate Bloom filter files, if known SNPs are in UCSC text file format     "
-	                "<input FASTA> <input SNPs> <output ref bloom filter> <output SNP bloom filter>\n");
-	fprintf(stderr, "vcfbf    Generate dictionary files, if known SNPs are in VCF file format    "
-	                "<input FASTA> <input SNPs> <output ref bloom filter> <output SNP bloom filter>\n");
-	fprintf(stderr, "genotype    Perform genotyping            "
-	                "<input ref dict> <input SNP dict> <input FASTQ> <chrlens file> <ref Bloom filter> <snp Bloom filter> <output file>\n");
+	//fprintf(stderr, "ucscd    Generate dictionary files, if known SNPs are in UCSC text file format     "
+	//                "<input FASTA> <input SNPs> <output ref dict> <output SNP dict>\n");
+	//fprintf(stderr, "vcfd    Generate dictionary files, if known SNPs are in VCF file format    "
+	//                "<input FASTA> <input SNPs> <output ref dict> <output SNP dict>\n");
+	//fprintf(stderr, "ucscbf    Generate Bloom filter files, if known SNPs are in UCSC text file format     "
+	//                "<input FASTA> <input SNPs> <output ref bloom filter> <output SNP bloom filter>\n");
+	//fprintf(stderr, "vcfbf    Generate dictionary files, if known SNPs are in VCF file format    "
+	//                "<input FASTA> <input SNPs> <output ref bloom filter> <output SNP bloom filter>\n");
+	//fprintf(stderr, "genotype    Perform genotyping            "
+	//                "<input ref dict> <input SNP dict> <input FASTQ> <chrlens file> <ref Bloom filter> <snp Bloom filter> <output file>\n");
 
 	fprintf(stderr, "index   Generate index            "
 	                "<input FASTA> <input SNPs> <index_prefix>\n");

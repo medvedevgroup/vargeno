@@ -36,13 +36,13 @@ mv SNPs142_hg19_Common.filt.txt snp.txt
 
 1. generate index files `ref.dict`, `snp.dict`, `ref.bf` and `snp.bf` and also chrlens file `ref.fa.chrlens`
 
-```$VARGENO/vargeno index hg19.fa snp.txt exp.idx```
+```$VARGENO/vargeno index hg19.fa snp.txt experiment```
 
 # Genotyping
 
 ## Using VarGeno
 
-```$VARGENO/vargeno geno exp.idx reads.fq ref.fa.chrlens genotype.out```
+```$VARGENO/vargeno geno experiment reads.fq ref.fa.chrlens genotype.out```
 > **Do not forget the command `geno` after `vargeno`**
 
 # Other data
