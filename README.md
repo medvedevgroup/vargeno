@@ -1,5 +1,5 @@
 # VarGeno
-Towards fast and accurate SNP genotyping from whole genome sequencing data for bedside diagnostics.
+Fase SNP genotyping tool for whole genome sequencing data and large SNP database.
 
 # Prerequisites
 - A modern, C++11 ready compiler, such as `g++` version 4.9 or higher.
@@ -38,20 +38,22 @@ You should then see `vargeno_lite`, `gbf_lite` in vargeno/vargeno_lite directory
 
 VarGeno takes as input:
 1. A reference genome sequence in FASTA file format.
-2. A list of SNPs to be genotyped, in [UCSC text file format](http://genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_group=varRep&hgta_track=snp141Common&hgta_table=snp141Common&hgta_doSchema=describe+table+schema). VCF format support coming soon
-3. Sequencing reads from the donor genome in FASTQ file format. If you have multiple FASTQ files, please `cat` them into one file.
+2. A list of SNPs to be genotyped. VCF file format and [UCSC text file format](http://genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_group=varRep&hgta_track=snp141Common&hgta_table=snp141Common&hgta_doSchema=describe+table+schema) are supported.
+3. Sequencing reads from the donor genome in FASTQ file format.
 
-Before genotyping an individual, you must construct indices for the reference using the following commands:
+Before genotyping an individual, you must construct indices for the reference and SNP list using the following commands:
 ```
-vargeno ucscd ref.fa snp.txt ref.dict snp.dict
-gbf ucsc ref.fa snp.txt ref.bf snp.bf
+vargeno index ref.fa snp.txt index_prefix
 ```
-This constructs the reference dictionaries `ref.dict` and `snp.dict`, the reference Bloom filters `ref.bf` and `snp.bf`, and also a file with the chromosome lengths `ref.fa.chrlens`.
+
+If your SNP list to be genotyped is in VCF file format, the file extension should be `.vcf`. If the SNP list is in UCSC text file format, the file extension should be `.txt`.
 
 To perform the genotyping:
 ```
-vargeno geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf result.out
+vargeno geno index_prefix reads.fq ref.fa.chrlens output_filename
 ```
+
+Here `index_prefix` should be the same string as index generating.
 
 The use of VarGeno-Lite is similar, for detail usage and example, please refer to the README in `vargeno/vargeno_lite`.
 
@@ -75,15 +77,13 @@ cd $VARGENO/test
 
 2. pre-process the reference and SNP list to generate indices:
 ```
-$VARGENO/vargeno ucscd chr22.fa snp.txt ref.dict snp.dict
-$VARGENO/gbf ucsc chr22.fa snp.txt ref.bf snp.bf
+$VARGENO/vargeno index chr22.fa snp.txt test.idx
 ```
 
 3. genotype variants:
 ```
-$VARGENO/vargeno geno ref.dict snp.dict reads.fq chr22.fa.chrlens ref.bf snp.bf result.out
+$VARGENO/vargeno geno test.idx reads.fq chr22.fa.chrlens genotype.out
 ```
-
 
 # Experiments in paper
 
@@ -92,7 +92,7 @@ To repeat the experiments in our paper, please follow the instructions in [exper
 # Citation
 
 If you use VarGeno in your research, please cite
-* Chen Sun and Paul Medvedev, Accelerating SNP genotyping from whole genome sequencing data for bedside diagnostics
+* Chen Sun and Paul Medvedev, Toward fast and accurate SNP genotyping from whole genome sequencing data for bedside diagnostics.
 
 VarGeno's algorithm is built on top of LAVA's. Its code is built on top of LAVA's and it reuses a lot of LAVA's code. It uses some code from the [AllSome project](https://github.com/medvedevgroup/bloomtree-allsome).
 * Shajii A, Yorukoglu D, William Yu Y, Berger B, [Fast genotyping of known SNPs through approximate k-mer matching,](https://academic.oup.com/bioinformatics/article/32/17/i538/2450790) Bioinformatics. 2016 32(17):i538-i544. Code is available [here](https://github.com/arshajii/lava/).

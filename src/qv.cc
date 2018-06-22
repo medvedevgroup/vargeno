@@ -1835,8 +1835,17 @@ static void print_help(void)
 	                "<input FASTA> <input SNPs> <output ref dict> <output SNP dict>\n");
 	fprintf(stderr, "vcfd    Generate dictionary files, if known SNPs are in VCF file format    "
 	                "<input FASTA> <input SNPs> <output ref dict> <output SNP dict>\n");
-	fprintf(stderr, "geno    Perform genotyping            "
+	fprintf(stderr, "ucscbf    Generate Bloom filter files, if known SNPs are in UCSC text file format     "
+	                "<input FASTA> <input SNPs> <output ref bloom filter> <output SNP bloom filter>\n");
+	fprintf(stderr, "vcfbf    Generate dictionary files, if known SNPs are in VCF file format    "
+	                "<input FASTA> <input SNPs> <output ref bloom filter> <output SNP bloom filter>\n");
+	fprintf(stderr, "genotype    Perform genotyping            "
 	                "<input ref dict> <input SNP dict> <input FASTQ> <chrlens file> <ref Bloom filter> <snp Bloom filter> <output file>\n");
+
+	fprintf(stderr, "index    Generate index            "
+	                "<input FASTA> <input SNPs> <index file>\n");
+	fprintf(stderr, "genotype    Perform genotyping            "
+	                "<index file> <input FASTQ> <chrlens file> <output file>\n");
 }
 
 static void arg_check(int argc, int expected)
@@ -1863,6 +1872,61 @@ int main(const int argc, const char *argv[])
 
 	if (STREQ(opt, "vcfd")) {
 		cout << "VCF format support coming soon." << endl;
+		
+		arg_check(argc, 4);
+		const char *ref_filename = argv[2];
+		const char *snp_filename = argv[3];
+		const char *refdict_filename = argv[4];
+		const char *snpdict_filename = argv[5];
+
+		SeqVec ref = parse_fasta(ref_filename);
+
+#define CHRLENS_EXT ".chrlens"
+		char chrlens_filename[4096];
+		assert(strlen(ref_filename) < (sizeof(chrlens_filename) - strlen(CHRLENS_EXT)));
+		sprintf(chrlens_filename, "%s" CHRLENS_EXT, ref_filename);
+		FILE *chrlens = fopen(chrlens_filename, "w");
+		assert(chrlens);
+#undef CHRLENS_EXT
+
+		for (size_t i = 0; i < ref.size; i++) {
+			fprintf(chrlens, "%s %lu\n", ref.seqs[i].name, ref.seqs[i].size);
+		}
+
+		fclose(chrlens);
+
+		FILE *snp_file = fopen(snp_filename, "r");
+		assert(snp_file);
+
+		FILE *snpdict_file = fopen(snpdict_filename, "wb");
+		assert(snpdict_file);
+
+		bool *snp_locations;
+		size_t snp_locs_size;
+		make_snp_dict(ref, snp_file, snpdict_file, &snp_locations, &snp_locs_size);
+		assert(snp_locations);
+
+#if GEN_FLT_DATA
+		FILE *snp_locs = fopen("snp_locs", "wb");
+		assert(snp_locs);
+		serialize_uint64(snp_locs, snp_locs_size);
+		for (size_t i = 0; i < snp_locs_size; i++) {
+			serialize_uint8(snp_locs, snp_locations[i]);
+		}
+		fclose(snp_locs);
+#endif
+
+		FILE *refdict_file = fopen(refdict_filename, "wb");
+		assert(refdict_file);
+
+		make_ref_dict(ref, refdict_file);
+
+		fclose(refdict_file);
+		free(snp_locations);
+
+		seqvec_dealloc(&ref);
+		fclose(snp_file);
+		fclose(snpdict_file);
 	}
 	if (STREQ(opt, "ucscd")) {
 		arg_check(argc, 4);
@@ -1936,7 +2000,7 @@ int main(const int argc, const char *argv[])
 		assert(out_file);
 
 		dict_filt(refdict_file, snp_pos_file, out_file);
-	} else if (STREQ(opt, "geno")) {
+	} else if (STREQ(opt, "genotype")) {
 
 		clock_t start_time, end_time;
         
@@ -1957,10 +2021,6 @@ int main(const int argc, const char *argv[])
 		ref_bf->load(ref_bf_filename);
 		snp_bf->load(snp_bf_filename);
 
-		//FILE *out_file = fopen(out_filename, "w");
-		//assert(out_file);
-
-		//initialize mask
 		for(int i = 0; i < 32; i++) {
     		odd_mask_64 <<= 2;
     		odd_mask_64 |= 2;
@@ -1985,12 +2045,6 @@ int main(const int argc, const char *argv[])
 			diff_base_dictionary[base_mask_1] = left_shift_time;
 			diff_base_dictionary[base_mask_2] = left_shift_time;
 			diff_base_dictionary[base_mask_3] = left_shift_time;
-			//
-			//cout << "position: " << left_shift_time << endl;
-			//printint(base_mask_1);
-			//printint(base_mask_2);
-			//printint(base_mask_3);
-			//
 			base_mask_1 <<= 2;
 			base_mask_2 <<= 2;
 			base_mask_3 <<= 2;
@@ -2029,16 +2083,279 @@ int main(const int argc, const char *argv[])
 			delete snp_bf;
 			snp_bf = NULL;
 		}
+	} else if (STREQ(opt, "geno")) {
 
-		//fclose(refdict_file);
-		//fclose(snpdict_file);
-		//fclose(fastq_file);
-		//fclose(chrlens_file);
-		//fclose(out_file);
-	} else if (STREQ(opt, "help")) {
+		clock_t start_time, end_time;
+        
+        start_time = clock();
+
+        arg_check(argc, 5);
+		string prefix = argv[2];
+		string ref_dict_filename_string = prefix+".ref.dict";
+		string snp_dict_filename_string = prefix+".snp.dict";
+		string ref_bf_filename = prefix+".ref.bf";
+		string snp_bf_filename = prefix+".snp.bf";
+		
+		const char *refdict_filename = ref_dict_filename_string.c_str();
+		const char *snpdict_filename = snp_dict_filename_string.c_str();
+		
+		const char *fastq_filename = argv[3];
+		const char *chrlens_filename = argv[4];
+		//string ref_bf_filename = argv[6];
+		//string snp_bf_filename = argv[7];
+		const char *out_filename = argv[5];
+
+		ref_bf = new BloomFilter(BFGenerator::REF_BF_RANGE);
+		snp_bf = new BloomFilter(BFGenerator::SNP_BF_RANGE);
+
+		ref_bf->load(ref_bf_filename);
+		snp_bf->load(snp_bf_filename);
+
+		for(int i = 0; i < 32; i++) {
+    		odd_mask_64 <<= 2;
+    		odd_mask_64 |= 2;
+    		even_mask_64 <<= 2;
+    		even_mask_64 |= 1;
+
+		  if(i < 16){
+			odd_mask_32 <<= 2;
+			odd_mask_32 |= 2;
+			even_mask_32 <<= 2;
+			even_mask_32 |= 1;
+		  }
+		}
+
+		//initialize diff base dictionary
+		uint64_t base_mask_1 = 1;
+		uint64_t base_mask_2 = 2;
+		uint64_t base_mask_3 = 3;
+		for (int left_shift_time = 0; left_shift_time < 32; left_shift_time++) {
+		
+			// if two kmers a and b has only one diff base, then a^b only have 01, 10, 11 for that base
+			diff_base_dictionary[base_mask_1] = left_shift_time;
+			diff_base_dictionary[base_mask_2] = left_shift_time;
+			diff_base_dictionary[base_mask_3] = left_shift_time;
+			base_mask_1 <<= 2;
+			base_mask_2 <<= 2;
+			base_mask_3 <<= 2;
+		}
+
+
+        FILE *refdict_file = fopen(refdict_filename, "rb");
+	    assert(refdict_file);
+
+	    FILE *snpdict_file = fopen(snpdict_filename, "rb");
+	    assert(snpdict_file);
+
+	    FILE *fastq_file = fopen(fastq_filename, "r");
+	    assert(fastq_file);
+
+	    FILE *chrlens_file = fopen(chrlens_filename, "r");
+	    assert(chrlens_file);
+		
+        FILE *out_file = fopen(out_filename, "w");
+		assert(out_file);
+		
+        genotype(refdict_file, snpdict_file, fastq_file, chrlens_file, out_file);
+		    
+        fclose(refdict_file);
+	    fclose(snpdict_file);
+	    fclose(fastq_file);
+	    fclose(chrlens_file);
+		fclose(out_file);
+
+		if (ref_bf != NULL) {
+			delete ref_bf;
+			ref_bf = NULL;
+		}
+
+		if (snp_bf != NULL) {
+			delete snp_bf;
+			snp_bf = NULL;
+		}
+	}  else if (STREQ(opt, "help")) {
 		print_help();
 		exit(EXIT_SUCCESS);
-	} else {
+	} else if (STREQ(opt, "vcfbf")) {
+		arg_check(argc, 4);
+		string ref_filename = argv[2];
+		string snp_filename = argv[3];
+		string refbf_filename;
+		string snpbf_filename;
+		refbf_filename = argv[4];
+        snpbf_filename = argv[5];
+
+		BFGenerator * bg = new BFGenerator();
+		bg->readFasta(ref_filename);
+		bg->constructBfFromGenomeseq(refbf_filename, false);
+		bg->constructBfFromVcf(snp_filename, snpbf_filename, false);
+		delete bg;
+	}else if (STREQ(opt, "ucscbf")) {
+		arg_check(argc, 4);
+		string ref_filename = argv[2];
+		string snp_filename = argv[3];
+		string refbf_filename;
+		string snpbf_filename;
+		refbf_filename = argv[4];
+        snpbf_filename = argv[5];
+
+		BFGenerator * bg = new BFGenerator();
+		bg->readFasta(ref_filename);
+		bg->constructBfFromGenomeseq(refbf_filename, false);
+		bg->constructBfFromUcsc(snp_filename, snpbf_filename, false);
+		delete bg;
+	}else if (STREQ(opt, "index")){
+		arg_check(argc, 3);
+		string ref_filename_string = argv[2];
+		string snp_filename_string = argv[3];
+		string prefix = argv[4];
+		vector<string> columns = split(snp_filename_string, '.');
+
+		if(columns[columns.size()-1] == "txt"){
+
+			const char *ref_filename = argv[2];
+			const char *snp_filename = argv[3];
+			
+			string ref_dict_filename_string = prefix+".ref.dict";
+			string snp_dict_filename_string = prefix+".snp.dict";
+			string ref_bf_filename = prefix+".ref.bf";
+			string snp_bf_filename = prefix+".snp.bf";
+			
+			const char *refdict_filename = ref_dict_filename_string.c_str();
+			const char *snpdict_filename = snp_dict_filename_string.c_str();
+
+			BFGenerator * bg = new BFGenerator();
+			bg->readFasta(ref_filename_string);
+			bg->constructBfFromGenomeseq(ref_bf_filename, false);
+			bg->constructBfFromUcsc(snp_filename_string, snp_bf_filename, false);
+			delete bg;
+
+			SeqVec ref = parse_fasta(ref_filename);
+
+	#define CHRLENS_EXT ".chrlens"
+			char chrlens_filename[4096];
+			assert(strlen(ref_filename) < (sizeof(chrlens_filename) - strlen(CHRLENS_EXT)));
+			sprintf(chrlens_filename, "%s" CHRLENS_EXT, ref_filename);
+			FILE *chrlens = fopen(chrlens_filename, "w");
+			assert(chrlens);
+	#undef CHRLENS_EXT
+
+			for (size_t i = 0; i < ref.size; i++) {
+				fprintf(chrlens, "%s %lu\n", ref.seqs[i].name, ref.seqs[i].size);
+			}
+
+			fclose(chrlens);
+
+			FILE *snp_file = fopen(snp_filename, "r");
+			assert(snp_file);
+
+			FILE *snpdict_file = fopen(snpdict_filename, "wb");
+			assert(snpdict_file);
+
+			bool *snp_locations;
+			size_t snp_locs_size;
+			make_snp_dict(ref, snp_file, snpdict_file, &snp_locations, &snp_locs_size);
+			assert(snp_locations);
+
+	#if GEN_FLT_DATA
+			FILE *snp_locs = fopen("snp_locs", "wb");
+			assert(snp_locs);
+			serialize_uint64(snp_locs, snp_locs_size);
+			for (size_t i = 0; i < snp_locs_size; i++) {
+				serialize_uint8(snp_locs, snp_locations[i]);
+			}
+			fclose(snp_locs);
+	#endif
+
+			FILE *refdict_file = fopen(refdict_filename, "wb");
+			assert(refdict_file);
+
+			make_ref_dict(ref, refdict_file);
+
+			fclose(refdict_file);
+			free(snp_locations);
+
+			seqvec_dealloc(&ref);
+			fclose(snp_file);
+			fclose(snpdict_file);
+
+		}else if (columns[columns.size()-1] == "vcf"){
+
+			const char *ref_filename = argv[2];
+			const char *snp_filename = argv[3];
+			
+			string ref_dict_filename_string = prefix+".ref.dict";
+			string snp_dict_filename_string = prefix+".snp.dict";
+			string ref_bf_filename = prefix+".ref.bf";
+			string snp_bf_filename = prefix+".snp.bf";
+			
+			const char *refdict_filename = ref_dict_filename_string.c_str();
+			const char *snpdict_filename = snp_dict_filename_string.c_str();
+
+			BFGenerator * bg = new BFGenerator();
+			bg->readFasta(ref_filename_string);
+			bg->constructBfFromGenomeseq(ref_bf_filename, false);
+			bg->constructBfFromVcf(snp_filename_string, snp_bf_filename, false);
+			delete bg;
+
+			SeqVec ref = parse_fasta(ref_filename);
+
+	#define CHRLENS_EXT ".chrlens"
+			char chrlens_filename[4096];
+			assert(strlen(ref_filename) < (sizeof(chrlens_filename) - strlen(CHRLENS_EXT)));
+			sprintf(chrlens_filename, "%s" CHRLENS_EXT, ref_filename);
+			FILE *chrlens = fopen(chrlens_filename, "w");
+			assert(chrlens);
+	#undef CHRLENS_EXT
+
+			for (size_t i = 0; i < ref.size; i++) {
+				fprintf(chrlens, "%s %lu\n", ref.seqs[i].name, ref.seqs[i].size);
+			}
+
+			fclose(chrlens);
+
+			FILE *snp_file = fopen(snp_filename, "r");
+			assert(snp_file);
+
+			FILE *snpdict_file = fopen(snpdict_filename, "wb");
+			assert(snpdict_file);
+
+			bool *snp_locations;
+			size_t snp_locs_size;
+			make_snp_dict(ref, snp_file, snpdict_file, &snp_locations, &snp_locs_size);
+			assert(snp_locations);
+
+	#if GEN_FLT_DATA
+			FILE *snp_locs = fopen("snp_locs", "wb");
+			assert(snp_locs);
+			serialize_uint64(snp_locs, snp_locs_size);
+			for (size_t i = 0; i < snp_locs_size; i++) {
+				serialize_uint8(snp_locs, snp_locations[i]);
+			}
+			fclose(snp_locs);
+	#endif
+
+			FILE *refdict_file = fopen(refdict_filename, "wb");
+			assert(refdict_file);
+
+			make_ref_dict(ref, refdict_file);
+
+			fclose(refdict_file);
+			free(snp_locations);
+
+			seqvec_dealloc(&ref);
+			fclose(snp_file);
+			fclose(snpdict_file);
+
+		}else{
+
+			cout << "Unrecongized SNP list file format." << endl;
+			exit(EXIT_FAILURE);
+		}
+
+	} 
+	
+	else {
 		print_help();
 		exit(EXIT_FAILURE);
 	}

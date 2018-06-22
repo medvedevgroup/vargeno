@@ -539,3 +539,206 @@ void make_snp_dict(SeqVec ref, FILE *snp_file, FILE *out, bool **snp_locations, 
 #undef FREQS_FIELD
 }
 
+void vcf_split_line(const char *str, char **out)
+{
+	char *p = (char *)str;
+	size_t i = 0;
+	while (*p) {
+		out[i++] = p;
+		while (*p != ';' && *p != '=') ++p;
+		++p;
+	}
+	out[i] = NULL;
+}
+
+
+void make_snp_dict_from_vcf(SeqVec ref, FILE *snp_file, FILE *out, bool **snp_locations, size_t *snp_locs_size)
+{
+#define CHROM_FIELD   0
+#define INDEX_FIELD   1
+#define REF1_FIELD    3
+#define REF2_FIELD    3
+#define ALT_FIELD     4
+#define INFO_FIELD	  7
+#define FREQS_FIELD   25
+
+	char line[6000];
+	char chrom_name[50];
+	char *line_split[30];
+	char *info_split[30];
+	Seq *chrom = NULL;
+
+	size_t lines = 0;
+	while (!feof(snp_file)) {
+		if (fgetc(snp_file) == '\n')
+			++lines;
+	}
+	rewind(snp_file);
+
+	*snp_locs_size = 10;
+	*snp_locations = (bool*)malloc(*snp_locs_size * sizeof(bool));
+	assert(*snp_locations);
+	memset(*snp_locations, false, *snp_locs_size);
+
+	const size_t max_kmers_len = lines * 32;  /* 32 k-mers per line */
+	struct snp_kmer_info *kmers = (struct snp_kmer_info*)malloc(max_kmers_len * sizeof(*kmers));
+	assert(kmers);
+	size_t kmers_len = 0;
+
+	unsigned int start_index = 1;  // 1-based
+
+	while (fgets(line, sizeof(line), snp_file)) {
+		assert(!ferror(snp_file));
+
+		if (line[0] == '#' || line[0] == '\n')
+			continue;
+
+		split_line(line, line_split);
+
+		/* copy chromosome name into an independent buffer */
+		size_t chrom_index;
+		for (chrom_index = 0;
+		     !isspace(line_split[CHROM_FIELD][chrom_index]) &&
+		       (chrom_index < (sizeof(chrom_name) - 1));
+		     chrom_index++) {
+
+			chrom_name[chrom_index] = line_split[CHROM_FIELD][chrom_index];
+		}
+		chrom_name[chrom_index] = '\0';
+
+		const char ref_base = toupper(line_split[REF1_FIELD][0]);
+		const unsigned ref_base_u = encode_base(ref_base);
+
+		if (ref_base_u == BASE_X)
+		// ||
+		//	strncmp(line_split[TYPE_FIELD], "single", strlen("single")) != 0 ||
+		//    ref_base != toupper(line_split[REF2_FIELD][0])) 
+		{
+
+			continue;
+		}
+
+		/* check if reference sequences are 1 base long */
+		if (!(isspace(line_split[REF1_FIELD][1]) )) {
+			continue;
+		}
+
+		if (!(isspace(line_split[ALT_FIELD][1]) )) {
+			continue;
+		}
+
+		if (chrom == NULL || strcmp(chrom->name, chrom_name) != 0) {
+			chrom = find_seq_by_name(ref, chrom_name, &start_index);
+
+			if (chrom == NULL) {
+				continue;
+			}
+		}
+
+		const unsigned int index = atoi(line_split[INDEX_FIELD]) - 1;  // 1-based
+
+		if (index >= chrom->size || toupper(chrom->seq[index]) != ref_base) {
+			fprintf(stderr,
+			        "Mismatch found between reference sequence and SNP file at 0-based index %u in %s.\n",
+			        index,
+			        chrom->name);
+			exit(EXIT_FAILURE);
+		}
+
+		if (index < 32 || (index + 32) > chrom->size) {
+			continue;
+		}
+
+		/* we should only process bi-allelic SNPs */
+
+		const bool neg = false;
+
+		const char a1 = ref_base;
+		const char a2 = toupper(line_split[ALT_FIELD][0]);
+
+		assert((a1 == 'A' || a1 == 'C' || a1 == 'G' || a1 == 'T') &&
+		       (a2 == 'A' || a2 == 'C' || a2 == 'G' || a2 == 'T'));
+
+		if (a1 != ref_base && a2 != ref_base) {
+			continue;
+		}
+
+		const size_t loc = start_index + index;
+		if (loc >= *snp_locs_size) {
+			*snp_locations = (bool*)realloc(*snp_locations, (loc + 1) * sizeof(bool));
+			assert(*snp_locations);
+			memset(*snp_locations + *snp_locs_size, false, loc - *snp_locs_size + 1);
+			*snp_locs_size = loc + 1;
+		}
+		(*snp_locations)[loc] = true;
+
+		char* info = line_split[INFO_FIELD];
+		vcf_split_line(info, info_split);
+
+		if (strncmp(info_split[FREQS_FIELD-1], "CAF", strlen("CAF")) != 0){
+			continue;
+		}
+
+		char *p = info_split[FREQS_FIELD];
+		float freq1 = atof(p);
+		while (*p++ != ',');
+		float freq2 = atof(p);
+
+		const uint8_t freq1_enc = (uint8_t)(freq1*0xff);
+		const uint8_t freq2_enc = (uint8_t)(freq2*0xff);
+
+		char *alt_p = line_split[ALT_FIELD];
+
+		{
+			struct snp_kmer_info snp_kmers[32];
+
+			const char alt = neg ? rev(toupper(*alt_p)) : toupper(*alt_p);
+
+			if (alt == ref_base || !(alt == 'A' || alt == 'C' || alt == 'G' || alt == 'T')) {
+				continue;
+			}
+
+			assert(kmers_len + 32 <= max_kmers_len);
+
+			const char *seq = chrom->seq;
+			bool kmer_had_n;
+			kmer_t kmer = encode_kmer(&seq[index - 32], &kmer_had_n);
+
+			if (kmer_had_n)
+				goto end;
+
+			for (unsigned int i = 0; i < 32; i++) {
+				const char next_base = (i ? seq[index + i] : alt);
+
+				if (next_base == 'N' || next_base == 'n')
+					goto end;
+
+				kmer = shift_kmer(kmer, next_base);
+				snp_kmers[i].kmer = kmer;
+				snp_kmers[i].pos = start_index + index - 32 + 1 + i;
+				snp_kmers[i].snp = SNP_INFO_MAKE(32 - 1 - i, ref_base_u);
+				snp_kmers[i].ref_freq = freq1_enc;
+				snp_kmers[i].alt_freq = freq2_enc;
+			}
+
+			memcpy(&kmers[kmers_len], snp_kmers, 32 * sizeof(*kmers));
+			kmers_len += 32;
+
+			end:
+			break;
+		}
+	}
+
+	kmers = (struct snp_kmer_info*)realloc(kmers, kmers_len * sizeof(*kmers));
+	sort_snp_kmers(kmers, kmers_len);
+	write_snp_kmers(kmers, kmers_len, out);
+	free(kmers);
+
+#undef CHROM_FIELD
+#undef INDEX_FIELD
+#undef REF1_FIELD
+#undef REF2_FIELD
+#undef ALT_FIELD
+#undef INFO_FIELD
+#undef FREQS_FIELD
+}

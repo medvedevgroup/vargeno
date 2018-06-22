@@ -34,19 +34,15 @@ mv SNPs142_hg19_Common.filt.txt snp.txt
 
 # Preprocessing: generate dictionaries and Bloom filters
 
-1. generate dictionaries `ref.dict`, `snp.dict` and also chrlens file `ref.fa.chrlens`
+1. generate index files `ref.dict`, `snp.dict`, `ref.bf` and `snp.bf` and also chrlens file `ref.fa.chrlens`
 
-```$VARGENO/vargeno ucscd hg19.fa snp.txt ref.dict snp.dict```
-
-2. generate Bloom filters `ref.bf` and `snp.dict`
-
-```$VARGENO/gbf ucsc hg19.fa snp.txt ref.bf snp.bf```
+```$VARGENO/vargeno index hg19.fa snp.txt exp.idx```
 
 # Genotyping
 
 ## Using VarGeno
 
-```$VARGENO/vargeno geno ref.dict snp.dict reads.fq ref.fa.chrlens ref.bf snp.bf vargeno.out```
+```$VARGENO/vargeno geno exp.idx reads.fq ref.fa.chrlens genotype.out```
 > **Do not forget the command `geno` after `vargeno`**
 
 # Other data
