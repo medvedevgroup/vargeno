@@ -77,12 +77,12 @@ cd $VARGENO/test
 
 2. pre-process the reference and SNP list to generate indices:
 ```
-$VARGENO/vargeno index chr22.fa snp.txt test.idx
+$VARGENO/vargeno index chr22.fa snp.txt test_prefix
 ```
 
 3. genotype variants:
 ```
-$VARGENO/vargeno geno test.idx reads.fq chr22.fa.chrlens genotype.out
+$VARGENO/vargeno geno test_prefix reads.fq chr22.fa.chrlens genotype.out
 ```
 
 # Experiments in paper

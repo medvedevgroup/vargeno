@@ -1842,10 +1842,10 @@ static void print_help(void)
 	fprintf(stderr, "genotype    Perform genotyping            "
 	                "<input ref dict> <input SNP dict> <input FASTQ> <chrlens file> <ref Bloom filter> <snp Bloom filter> <output file>\n");
 
-	fprintf(stderr, "index    Generate index            "
-	                "<input FASTA> <input SNPs> <index file>\n");
-	fprintf(stderr, "genotype    Perform genotyping            "
-	                "<index file> <input FASTQ> <chrlens file> <output file>\n");
+	fprintf(stderr, "index   Generate index            "
+	                "<input FASTA> <input SNPs> <index_prefix>\n");
+	fprintf(stderr, "geno    Perform genotyping        "
+	                "<index_prefix> <input FASTQ> <chrlens file> <output file>\n");
 }
 
 static void arg_check(int argc, int expected)
@@ -2089,7 +2089,7 @@ int main(const int argc, const char *argv[])
         
         start_time = clock();
 
-        arg_check(argc, 5);
+        arg_check(argc, 4);
 		string prefix = argv[2];
 		string ref_dict_filename_string = prefix+".ref.dict";
 		string snp_dict_filename_string = prefix+".snp.dict";
