@@ -472,7 +472,7 @@ static inline struct call choose_best_genotype(const int ref_cnt,
                                                const uint8_t ref_freq_enc,
                                                const uint8_t alt_freq_enc);
 
-static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, FILE *chrlens_file, FILE *out, string vcf_filename)
+static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, FILE *chrlens_file, FILE *out)
 {
 	clock_t begin, end;
 	double time_spent;
@@ -751,7 +751,6 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 		}
 	}
 
-	unordered_map<string, pair<char, double>> snp_2_genotype;
 
 	/* === Walk FASTQ File === */
 #define BUF_SIZE 1024
@@ -1665,28 +1664,20 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 
 			const struct call call = choose_best_genotype(p->ref_cnt, p->alt_cnt, p->ref_freq, p->alt_freq);
 
-			string snp_index = string(chrlens[j].name) + "$" + to_string(index);
-
 			switch (call.genotype) {
 			case GTYPE_NONE:
 				break;
 			case GTYPE_REF:
 				++ref_call_count;
-				//fprintf(out, "%s %lu 0/0 %.15g\n", chrlens[j].name, index, call.confidence);
-				pair<char, double> genotype_pair = make_pair('0', call.confidence);
-				snp_2_genotype[snp_index] = genotype_pair;
+				fprintf(out, "%s %lu 0/0 %.15g\n", chrlens[j].name, index, call.confidence);
 				break;
 			case GTYPE_ALT:
 				++alt_call_count;
-				//fprintf(out, "%s %lu 1/1 %.15g\n", chrlens[j].name, index, call.confidence);
-				pair<char, double> genotype_pair = make_pair('2', call.confidence);
-				snp_2_genotype[snp_index] = genotype_pair;
+				fprintf(out, "%s %lu 1/1 %.15g\n", chrlens[j].name, index, call.confidence);
 				break;
 			case GTYPE_HET:
 				++het_call_count;
-				//fprintf(out, "%s %lu 0/1 %.15g\n", chrlens[j].name, index, call.confidence);
-				pair<char, double> genotype_pair = make_pair('1', call.confidence);
-				snp_2_genotype[snp_index] = genotype_pair;
+				fprintf(out, "%s %lu 0/1 %.15g\n", chrlens[j].name, index, call.confidence);
 				break;
 			}
 
@@ -2110,9 +2101,9 @@ int main(const int argc, const char *argv[])
 		
 		const char *fastq_filename = argv[3];
 		const char *chrlens_filename = argv[4];
-		string vcf_filename = argv[5];
+		//string ref_bf_filename = argv[6];
 		//string snp_bf_filename = argv[7];
-		const char *out_filename = argv[6];
+		const char *out_filename = argv[5];
 
 		ref_bf = new BloomFilter(BFGenerator::REF_BF_RANGE);
 		snp_bf = new BloomFilter(BFGenerator::SNP_BF_RANGE);
@@ -2165,7 +2156,7 @@ int main(const int argc, const char *argv[])
         FILE *out_file = fopen(out_filename, "w");
 		assert(out_file);
 		
-        genotype(refdict_file, snpdict_file, fastq_file, chrlens_file, out_file, vcf_filename);
+        genotype(refdict_file, snpdict_file, fastq_file, chrlens_file, out_file);
 		    
         fclose(refdict_file);
 	    fclose(snpdict_file);
