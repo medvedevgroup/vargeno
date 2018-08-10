@@ -472,7 +472,7 @@ static inline struct call choose_best_genotype(const int ref_cnt,
                                                const uint8_t ref_freq_enc,
                                                const uint8_t alt_freq_enc);
 
-static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, FILE *chrlens_file, FILE *out, string vcf_filename)
+static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, FILE *chrlens_file, string out_filename, string vcf_filename)
 {
 	clock_t begin, end;
 	double time_spent;
@@ -570,38 +570,6 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 			last_hi = hi;
 		}
 	}
-
-	// test printing all kmers_t and corresponding hi and lo
-/*	ofstream tempfile;
-	tempfile.open ("kmer_info.txt");
-	for (size_t i = 0; i < ref_dict_size; i++) {
-		
-		const kmer_t kmer = read_uint64(refdict_file);
-		const uint32_t pos = read_uint32(refdict_file);
-		const uint8_t ambig_flag = read_uint8(refdict_file);
-
-#if REF_LITE
-		ref_dict[i].kmer_lo40 = LO40(kmer);
-#else
-		ref_dict[i].kmer_lo = LO(kmer);
-#endif
-		ref_dict[i].pos = pos;
-		ref_dict[i].ambig_flag = ambig_flag;
-
-		if (pos > max_pos)
-			max_pos = pos;
-
-#if REF_LITE
-		const uint32_t hi = HI24(kmer);
-#else
-		const uint32_t hi = HI(kmer);
-#endif
-		// print here
-		tempfile << kmer << "," << hi << "," << ref_dict[i].kmer_lo << endl;
-	}
-	tempfile.close();
-*/
-	// end test printing
 
 #if REF_LITE
 	if (last_hi != 0xFFFFFF) {
@@ -723,31 +691,6 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 
 			snp_aux_table[i].pos_list[j] = pos;
 			snp_aux_table[i].snp_list[j] = snp;
-
-		    /*	
-			if (pos != 0) {
-				const unsigned snp_info_ref = SNP_INFO_REF(snp);
-				const unsigned snp_info_pos = SNP_INFO_POS(snp);  // relative to k-mer
-				const size_t snp_pos = pos + snp_info_pos;        // relative to reference
-
-				if (snp_pos >= pileup_size) {
-					pileup_size = (snp_pos + 1) * sizeof(*pileup_table);
-					printf("Re-allocing pileup table to %lu entries...\n", pileup_size);
-					pileup_table = (struct packed_pileup_entry*)realloc(pileup_table, pileup_size);
-					assert(pileup_table);
-				}
-
-				//pileup_table[snp_pos].ref = snp_info_ref;
-				//pileup_table[snp_pos].alt = kmer_get_base(kmer, snp_info_pos);
-				//pileup_table[snp_pos].ref_freq = ref_freq;
-				//pileup_table[snp_pos].alt_freq = alt_freq;
-				
-                pileup_table[snp_pos].ref = 3;
-				pileup_table[snp_pos].alt = 3;
-				pileup_table[snp_pos].ref_freq = 0;
-				pileup_table[snp_pos].alt_freq = 0;
-			}
-			*/
 		}
 	}
 
@@ -883,19 +826,6 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 			index_table.ambiguous = false;
 			continue;
 		}
-
-		// (possibly) one last k-mer to cover entire read
-		/*
-		if (need_terminal_kmer) {
-			bool kmer_had_n;
-			kmer_t kmer = encode_kmer(&read[read_len_true - 32], &kmer_had_n);
-
-			if (kmer_had_n)
-				goto nohit;
-
-			kmers[kmer_count++] = kmer;
-		}
-		*/
 
 		n_ref_hits = 0;
 		n_snp_hits = 0;
@@ -1695,47 +1625,105 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 #endif
 	}
 
+	std::ifstream input(vcf_filename);
+	if (!input.good()) {
+		std::cerr << "Error opening: " << vcf_filename << " . You have failed." << std::endl;
+		return;
+	}
+	string line;
+	std::ofstream output;
+	output.open(out_filename);
+
+	auto has_gt = false;
+	auto has_gq = false;
+	int gt_index = -1;
+	int gq_index = -1;
+
+	while (std::getline(input, line)) {
+		if (line.empty()) continue;
+		if (line[0] == '#' and line[1] == '#'){
+			output << line << endl;
+			if (line.find("GT") != std::string::npos) has_gt = true;
+			else if (line.find("GQ") != std::string::npos) has_gq = true;
+			continue;
+		}else if( line[0] == '#'){
+			if(! has_gt) output << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">" << endl;
+			if(! has_gq) output << "##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">" << endl;
+			output << line << endl;
+		}
+		vector<string> columns = split(line, '\t');
+		string chr_name = columns[0];
+		string pos = columns[1];
+		string snp_index = chr_name + "$" + pos;
+		if(snp_2_genotype.find(snp_index) == snp_2_genotype.end()) continue;
+		pair<char, double> genotype_pair = snp_2_genotype[snp_index];
+		string genotype_string = "0/0";
+		if (genotype_pair.first == '1') genotype_string = "0/1";
+		else if(genotype_pair.first == '2') genotype_string = "1/1";
+		int genotype_quality = 10*log(genotype_pair.second);
+		string format_str = columns[8];
+		string info_str = columns[9];
+		vector<string> format_columns = split(format_str, ':');
+		vector<string> info_columns = split(info_str, ':');
+		if(gt_index == -1 && has_gt){
+			for(int i = 0; i < format_columns.size(); i++){
+				if(format_columns[i] == "GT") {
+					gt_index = i;
+					break;
+				}
+			}
+			assert(gt_index >= 0);
+		}
+		if(gt_index == -1 && has_gq){
+			for(int i = 0; i < format_columns.size(); i++){
+				if(format_columns[i] == "GQ") {
+					gq_index = i;
+					break;
+				}
+			}
+			assert(gq_index >= 0);
+		}
+		if (has_gt){
+			info_columns[gt_index] = genotype_string;
+		}else{
+			format_columns.push_back("GT");
+			info_columns.push_back(genotype_string);
+		}
+
+		if(has_gq){
+			info_columns[gq_index] = to_string(genotype_quality);
+		}else{
+			format_columns.push_back("GQ");
+			info_columns.push_back(to_string(genotype_quality));
+		}
+
+		// create new format_str and info_str, connect them into one 
+		string new_format = format_columns[0];
+		for(int i = 1; i < format_columns.size(); i++){
+			new_format += ":" + format_columns[i];
+		}
+		string new_info = info_columns[0];
+		for(int i = 1; i < info_columns.size(); i++){
+			new_info += ":" + info_columns[i];
+		}
+
+		string new_line = columns[0];
+		columns[8] = new_format;
+		columns[9] = new_info;
+		for(int i = 1; i < columns.size(); i++){
+			new_line += '\t' + columns[i];
+		}
+		output << new_line << endl;
+	}
+
+	input.close();
+	output.close();
+
 	end = clock();
 	time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
 	printf("Time: %f sec\n", time_spent);
 
 #if DEBUG
-	/*
-	static const char bases[] = {'A', 'C', 'G', 'T'};
-	FILE *counts = fopen("counts.txt", "w");
-	FILE *all_snps = fopen("all_snps.txt", "w");
-	for (size_t i = 0; i < pileup_size; i++) {
-		struct pileup_entry *p = &pileup_table[i];
-		if (p->ref == p->alt) {
-			assert(p->ref == 0 && p->alt == 0);
-			continue;  // no SNP here
-		}
-
-		size_t index = i;
-
-		// index w.r.t. correct chromosome
-		size_t j;
-		for (j = 0; j < num_chrs && index > chrlens[j].len; j++) {
-			index -= chrlens[j].len;
-		}
-
-		if (p->ref_cnt != 0 || p->alt_cnt != 0) {
-			fprintf(counts, "%s %lu (%c:%f / %c:%f) : %u / %u\n",
-			                chrlens[j].name,
-			                index,
-			                bases[p->ref],
-			                p->ref_freq/255.0f,
-			                bases[p->alt],
-			                p->alt_freq/255.0f,
-			                p->ref_cnt,
-			                p->alt_cnt);
-		}
-		fprintf(all_snps, "%s %lu\n", chrlens[j].name, index);
-	}
-
-	fclose(all_snps);
-	fclose(counts);
-	*/
 
 	printf("Total: %lu\n", total_count);
 	printf("Match: %lu\n", match_count);
@@ -1854,7 +1842,7 @@ static void print_help(void)
 	fprintf(stderr, "index   Generate index            "
 	                "<input FASTA> <input SNPs> <index_prefix>\n");
 	fprintf(stderr, "geno    Perform genotyping        "
-	                "<index_prefix> <input FASTQ> <chrlens file> <output file>\n");
+	                "<index_prefix> <input FASTQ> <chrlens file> <input SNPs in VCF> <output file>\n");
 }
 
 static void arg_check(int argc, int expected)
@@ -2075,7 +2063,7 @@ int main(const int argc, const char *argv[])
         FILE *out_file = fopen(out_filename, "w");
 		assert(out_file);
 		
-        genotype(refdict_file, snpdict_file, fastq_file, chrlens_file, out_file);
+        //genotype(refdict_file, snpdict_file, fastq_file, chrlens_file, out_file);
 		    
         fclose(refdict_file);
 	    fclose(snpdict_file);
@@ -2112,7 +2100,7 @@ int main(const int argc, const char *argv[])
 		const char *chrlens_filename = argv[4];
 		string vcf_filename = argv[5];
 		//string snp_bf_filename = argv[7];
-		const char *out_filename = argv[6];
+		string out_filename = argv[6];
 
 		ref_bf = new BloomFilter(BFGenerator::REF_BF_RANGE);
 		snp_bf = new BloomFilter(BFGenerator::SNP_BF_RANGE);
@@ -2162,16 +2150,16 @@ int main(const int argc, const char *argv[])
 	    FILE *chrlens_file = fopen(chrlens_filename, "r");
 	    assert(chrlens_file);
 		
-        FILE *out_file = fopen(out_filename, "w");
-		assert(out_file);
+        //FILE *out_file = fopen(out_filename, "w");
+		//assert(out_file);
 		
-        genotype(refdict_file, snpdict_file, fastq_file, chrlens_file, out_file, vcf_filename);
+        genotype(refdict_file, snpdict_file, fastq_file, chrlens_file, out_filename, vcf_filename);
 		    
         fclose(refdict_file);
 	    fclose(snpdict_file);
 	    fclose(fastq_file);
 	    fclose(chrlens_file);
-		fclose(out_file);
+		//fclose(out_file);
 
 		if (ref_bf != NULL) {
 			delete ref_bf;
