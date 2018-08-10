@@ -1,4 +1,4 @@
-# VarGeno
+# VarGeno in Dev
 Fase SNP genotyping tool for whole genome sequencing data and large SNP database.
 
 # Prerequisites
