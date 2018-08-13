@@ -1630,6 +1630,7 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 		std::cerr << "Error opening: " << vcf_filename << " . You have failed." << std::endl;
 		return;
 	}
+
 	string line;
 	std::ofstream output;
 	output.open(out_filename);
@@ -1638,34 +1639,55 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 	auto has_gq = false;
 	int gt_index = -1;
 	int gq_index = -1;
+    auto head_has_gt_col = true;
 
 	while (std::getline(input, line)) {
 		if (line.empty()) continue;
 		if (line[0] == '#' and line[1] == '#'){
 			output << line << endl;
-			if (line.find("GT") != std::string::npos) has_gt = true;
-			else if (line.find("GQ") != std::string::npos) has_gq = true;
+			if (line.find("ID=GT,") != std::string::npos) has_gt = true;
+			else if (line.find("ID=GQ,") != std::string::npos) has_gq = true;
 			continue;
 		}else if( line[0] == '#'){
-			if(! has_gt) output << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">" << endl;
-			if(! has_gq) output << "##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">" << endl;
-			output << line << endl;
+			if(! has_gt) {
+                output << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">" << endl;
+                gt_index = 0; // randomly set >= 0
+            }
+			if(! has_gq) {
+                output << "##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">" << endl;
+                gq_index = 1; // randomly set >= 0
+            }
+            //output << line << endl;
+            auto head_columns = split(line, '\t');
+            if (head_columns.size() < 10){
+                head_has_gt_col = false;
+                line += "\tFORMAT\tDONOR";
+            }
+            output << line << endl;
+            continue;
 		}
 		vector<string> columns = split(line, '\t');
 		string chr_name = columns[0];
-		string pos = columns[1];
+		if (chr_name[0] != 'c') chr_name = "chr" + chr_name;
+        string pos = columns[1];
 		string snp_index = chr_name + "$" + pos;
-		if(snp_2_genotype.find(snp_index) == snp_2_genotype.end()) continue;
+		if(snp_2_genotype.find(snp_index) == snp_2_genotype.end()){
+            continue;
+        }
 		pair<char, double> genotype_pair = snp_2_genotype[snp_index];
 		string genotype_string = "0/0";
 		if (genotype_pair.first == '1') genotype_string = "0/1";
 		else if(genotype_pair.first == '2') genotype_string = "1/1";
-		int genotype_quality = 10*log(genotype_pair.second);
-		string format_str = columns[8];
-		string info_str = columns[9];
-		vector<string> format_columns = split(format_str, ':');
-		vector<string> info_columns = split(info_str, ':');
-		if(gt_index == -1 && has_gt){
+		int genotype_quality = -1*10*log(genotype_pair.second);
+		string format_str = "";
+        if (head_has_gt_col) format_str = columns[8];
+		string info_str = "";
+        if (head_has_gt_col) info_str = columns[9];
+		vector<string> format_columns;
+        if(head_has_gt_col) format_columns = split(format_str, ':');
+		vector<string> info_columns;
+        if(head_has_gt_col) info_columns = split(info_str, ':');
+        if(gt_index == -1 && has_gt){
 			for(int i = 0; i < format_columns.size(); i++){
 				if(format_columns[i] == "GT") {
 					gt_index = i;
@@ -1708,8 +1730,13 @@ static void genotype(FILE *refdict_file, FILE *snpdict_file, FILE *fastq_file, F
 		}
 
 		string new_line = columns[0];
-		columns[8] = new_format;
-		columns[9] = new_info;
+		if(head_has_gt_col){
+            columns[8] = new_format;
+		    columns[9] = new_info;
+        }else{
+            columns.push_back(new_format);
+            columns.push_back(new_info);
+        }
 		for(int i = 1; i < columns.size(); i++){
 			new_line += '\t' + columns[i];
 		}
@@ -1840,9 +1867,9 @@ static void print_help(void)
 	//                "<input ref dict> <input SNP dict> <input FASTQ> <chrlens file> <ref Bloom filter> <snp Bloom filter> <output file>\n");
 
 	fprintf(stderr, "index   Generate index            "
-	                "<input FASTA> <input SNPs> <index_prefix>\n");
+	                "<input FASTA> <input SNPs in VCF> <index_prefix>\n");
 	fprintf(stderr, "geno    Perform genotyping        "
-	                "<index_prefix> <input FASTQ> <chrlens file> <input SNPs in VCF> <output file>\n");
+	                "<index_prefix> <input FASTQ> <input SNPs in VCF> <output file in VCF>\n");
 }
 
 static void arg_check(int argc, int expected)
@@ -1868,7 +1895,6 @@ int main(const int argc, const char *argv[])
 	const char *opt = argv[1];
 
 	if (STREQ(opt, "vcfd")) {
-		cout << "VCF format support coming soon." << endl;
 		
 		arg_check(argc, 4);
 		const char *ref_filename = argv[2];
@@ -1900,7 +1926,7 @@ int main(const int argc, const char *argv[])
 
 		bool *snp_locations;
 		size_t snp_locs_size;
-		make_snp_dict(ref, snp_file, snpdict_file, &snp_locations, &snp_locs_size);
+		make_snp_dict_from_vcf(ref, snp_file, snpdict_file, &snp_locations, &snp_locs_size);
 		assert(snp_locations);
 
 #if GEN_FLT_DATA
@@ -2088,7 +2114,8 @@ int main(const int argc, const char *argv[])
 
         arg_check(argc, 4);
 		string prefix = argv[2];
-		string ref_dict_filename_string = prefix+".ref.dict";
+		const char *prefix_chars = argv[2];
+        string ref_dict_filename_string = prefix+".ref.dict";
 		string snp_dict_filename_string = prefix+".snp.dict";
 		string ref_bf_filename = prefix+".ref.bf";
 		string snp_bf_filename = prefix+".snp.bf";
@@ -2097,10 +2124,18 @@ int main(const int argc, const char *argv[])
 		const char *snpdict_filename = snp_dict_filename_string.c_str();
 		
 		const char *fastq_filename = argv[3];
-		const char *chrlens_filename = argv[4];
-		string vcf_filename = argv[5];
+		//const char *chrlens_filename = argv[4];
+		string vcf_filename = argv[4];
 		//string snp_bf_filename = argv[7];
-		string out_filename = argv[6];
+		string out_filename = argv[5];
+	
+    #define CHRLENS_EXT ".chrlens"
+		char chrlens_filename[4096];
+		assert(strlen(prefix_chars) < (sizeof(chrlens_filename) - strlen(CHRLENS_EXT)));
+		sprintf(chrlens_filename, "%s" CHRLENS_EXT, prefix_chars);
+		//FILE *chrlens = fopen(chrlens_filename, "w");
+		//assert(chrlens);
+	#undef CHRLENS_EXT
 
 		ref_bf = new BloomFilter(BFGenerator::REF_BF_RANGE);
 		snp_bf = new BloomFilter(BFGenerator::SNP_BF_RANGE);
@@ -2208,7 +2243,7 @@ int main(const int argc, const char *argv[])
 		string prefix = argv[4];
 		vector<string> columns = split(snp_filename_string, '.');
 
-		if(columns[columns.size()-1] == "txt"){
+		/*if(columns[columns.size()-1] == "txt"){
 
 			const char *ref_filename = argv[2];
 			const char *snp_filename = argv[3];
@@ -2276,11 +2311,12 @@ int main(const int argc, const char *argv[])
 			fclose(snp_file);
 			fclose(snpdict_file);
 
-		}else if (columns[columns.size()-1] == "vcf"){
+		}else*/
+        if (columns[columns.size()-1] == "vcf"){
 
 			const char *ref_filename = argv[2];
 			const char *snp_filename = argv[3];
-			
+			const char *prefix_chars = argv[4];
 			string ref_dict_filename_string = prefix+".ref.dict";
 			string snp_dict_filename_string = prefix+".snp.dict";
 			string ref_bf_filename = prefix+".ref.bf";
@@ -2299,8 +2335,8 @@ int main(const int argc, const char *argv[])
 
 	#define CHRLENS_EXT ".chrlens"
 			char chrlens_filename[4096];
-			assert(strlen(ref_filename) < (sizeof(chrlens_filename) - strlen(CHRLENS_EXT)));
-			sprintf(chrlens_filename, "%s" CHRLENS_EXT, ref_filename);
+			assert(strlen(prefix_chars) < (sizeof(chrlens_filename) - strlen(CHRLENS_EXT)));
+			sprintf(chrlens_filename, "%s" CHRLENS_EXT, prefix_chars);
 			FILE *chrlens = fopen(chrlens_filename, "w");
 			assert(chrlens);
 	#undef CHRLENS_EXT
@@ -2319,7 +2355,7 @@ int main(const int argc, const char *argv[])
 
 			bool *snp_locations;
 			size_t snp_locs_size;
-			make_snp_dict(ref, snp_file, snpdict_file, &snp_locations, &snp_locs_size);
+			make_snp_dict_from_vcf(ref, snp_file, snpdict_file, &snp_locations, &snp_locs_size);
 			assert(snp_locations);
 
 	#if GEN_FLT_DATA

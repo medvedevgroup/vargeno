@@ -542,10 +542,16 @@ void make_snp_dict(SeqVec ref, FILE *snp_file, FILE *out, bool **snp_locations, 
 void vcf_split_line(const char *str, char **out)
 {
 	char *p = (char *)str;
-	size_t i = 0;
-	while (*p) {
+    size_t i = 0;
+	while (*p && *p != ' ' && *p != '\t' && *p != '\n') {
 		out[i++] = p;
-		while (*p != ';' && *p != '=') ++p;
+		//fprintf(stderr, "---- %s\n", out[i-1]);
+        while (*p != ';' && *p != '='){
+            if(*p != ' ' && *p != '\t' && *p != '\n')
+                ++p;
+            else
+                break;
+        }
 		++p;
 	}
 	out[i] = NULL;
@@ -565,7 +571,7 @@ void make_snp_dict_from_vcf(SeqVec ref, FILE *snp_file, FILE *out, bool **snp_lo
 	char line[6000];
 	char chrom_name[50];
 	char *line_split[30];
-	char *info_split[30];
+	char *info_split[100];
 	Seq *chrom = NULL;
 
 	size_t lines = 0;
@@ -587,6 +593,12 @@ void make_snp_dict_from_vcf(SeqVec ref, FILE *snp_file, FILE *out, bool **snp_lo
 
 	unsigned int start_index = 1;  // 1-based
 
+    bool ref_has_chr = true;
+    if (ref.seqs[0].name[0] != 'c') ref_has_chr = false;
+
+    int freq_index = -1;
+    bool has_freq = true;
+
 	while (fgets(line, sizeof(line), snp_file)) {
 		assert(!ferror(snp_file));
 
@@ -597,40 +609,54 @@ void make_snp_dict_from_vcf(SeqVec ref, FILE *snp_file, FILE *out, bool **snp_lo
 
 		/* copy chromosome name into an independent buffer */
 		size_t chrom_index;
-		for (chrom_index = 0;
-		     !isspace(line_split[CHROM_FIELD][chrom_index]) &&
-		       (chrom_index < (sizeof(chrom_name) - 1));
-		     chrom_index++) {
+        if (line_split[CHROM_FIELD][0] != 'c' && ref_has_chr){
+            chrom_name[0] = 'c';
+            chrom_name[1] = 'h';
+            chrom_name[2] = 'r';
+            for (chrom_index = 0;
+                 !isspace(line_split[CHROM_FIELD][chrom_index]) &&
+                   (chrom_index+3 < (sizeof(chrom_name) - 1));
+                 chrom_index++) {
 
-			chrom_name[chrom_index] = line_split[CHROM_FIELD][chrom_index];
-		}
-		chrom_name[chrom_index] = '\0';
+                chrom_name[chrom_index+3] = line_split[CHROM_FIELD][chrom_index];
+            }
+            chrom_name[chrom_index+3] = '\0';
+        }else{
+            for (chrom_index = 0;
+                 !isspace(line_split[CHROM_FIELD][chrom_index]) &&
+                   (chrom_index < (sizeof(chrom_name) - 1));
+                 chrom_index++) {
 
+                chrom_name[chrom_index] = line_split[CHROM_FIELD][chrom_index];
+            }
+            chrom_name[chrom_index] = '\0';
+        }
 		const char ref_base = toupper(line_split[REF1_FIELD][0]);
 		const unsigned ref_base_u = encode_base(ref_base);
 
 		if (ref_base_u == BASE_X)
-		// ||
-		//	strncmp(line_split[TYPE_FIELD], "single", strlen("single")) != 0 ||
-		//    ref_base != toupper(line_split[REF2_FIELD][0])) 
 		{
-
+            //fprintf(stderr, "unrecognized ref base\n");
 			continue;
 		}
 
 		/* check if reference sequences are 1 base long */
 		if (!(isspace(line_split[REF1_FIELD][1]) )) {
+            //fprintf(stderr, "ref base not found\n");
 			continue;
 		}
 
 		if (!(isspace(line_split[ALT_FIELD][1]) )) {
+            //fprintf(stderr, "alt base not found\n");
 			continue;
 		}
+
 
 		if (chrom == NULL || strcmp(chrom->name, chrom_name) != 0) {
 			chrom = find_seq_by_name(ref, chrom_name, &start_index);
 
 			if (chrom == NULL) {
+            fprintf(stderr, "[Error] chromosome name %s in VCF file not found in reference genome FASTA file\n. Usually this is because the FASTA file has chromesome name as \"chr1\" while the VCF file has chromosome name as \"1\" without the \"chr\"\n", chrom_name);
 				continue;
 			}
 		}
@@ -646,6 +672,7 @@ void make_snp_dict_from_vcf(SeqVec ref, FILE *snp_file, FILE *out, bool **snp_lo
 		}
 
 		if (index < 32 || (index + 32) > chrom->size) {
+            //fprintf(stderr, "pos too large or too small\n");
 			continue;
 		}
 
@@ -656,10 +683,15 @@ void make_snp_dict_from_vcf(SeqVec ref, FILE *snp_file, FILE *out, bool **snp_lo
 		const char a1 = ref_base;
 		const char a2 = toupper(line_split[ALT_FIELD][0]);
 
-		assert((a1 == 'A' || a1 == 'C' || a1 == 'G' || a1 == 'T') &&
-		       (a2 == 'A' || a2 == 'C' || a2 == 'G' || a2 == 'T'));
+		if (!(a1 == 'A' || a1 == 'C' || a1 == 'G' || a1 == 'T')) continue;
+		if (!(a2 == 'A' || a2 == 'C' || a2 == 'G' || a2 == 'T')) continue;
+		
+        //assert((a1 == 'A' || a1 == 'C' || a1 == 'G' || a1 == 'T') &&
+		//       (a2 == 'A' || a2 == 'C' || a2 == 'G' || a2 == 'T'));
+
 
 		if (a1 != ref_base && a2 != ref_base) {
+            //fprintf(stderr, "no ref base\n");
 			continue;
 		}
 
@@ -671,19 +703,37 @@ void make_snp_dict_from_vcf(SeqVec ref, FILE *snp_file, FILE *out, bool **snp_lo
 			*snp_locs_size = loc + 1;
 		}
 		(*snp_locations)[loc] = true;
-
+        
 		char* info = line_split[INFO_FIELD];
-		vcf_split_line(info, info_split);
+	    //fprintf(stderr, "%s\n", info);	
+        if (has_freq)
+            vcf_split_line(info, info_split);
 
-		if (strncmp(info_split[FREQS_FIELD-1], "CAF", strlen("CAF")) != 0){
-			continue;
-		}
+        float freq1 = 0.5;
+        float freq2 = 0.5;
 
-		char *p = info_split[FREQS_FIELD];
-		float freq1 = atof(p);
-		while (*p++ != ',');
-		float freq2 = atof(p);
 
+        if(has_freq){
+           int i = 0;
+           while(info_split[i] != NULL){
+               if(strncmp(info_split[i], "CAF", strlen("CAF")) == 0){
+                    freq_index = i+1;
+               }
+               i++;
+           }
+           if(freq_index == -1) has_freq = false;
+        }
+
+        //fprintf(stderr, "breakpoint 1\n");
+		//if (info_split[FREQS_FIELD] != NULL && strncmp(info_split[FREQS_FIELD-1], "CAF", strlen("CAF")) == 0){
+		if(has_freq){
+            char *p = info_split[freq_index];
+		    //fprintf(stderr, "has freq: %s\n", p);
+		    freq1 = atof(p);
+		    while (*p++ != ',');
+		    freq2 = atof(p);
+        }
+        //fprintf(stderr, "breakpoint 2\n");
 		const uint8_t freq1_enc = (uint8_t)(freq1*0xff);
 		const uint8_t freq2_enc = (uint8_t)(freq2*0xff);
 
@@ -725,7 +775,7 @@ void make_snp_dict_from_vcf(SeqVec ref, FILE *snp_file, FILE *out, bool **snp_lo
 			kmers_len += 32;
 
 			end:
-			break;
+			continue;
 		}
 	}
 
