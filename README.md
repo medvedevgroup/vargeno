@@ -7,24 +7,13 @@ Fase SNP genotyping tool for whole genome sequencing data and large SNP database
 - A 64-bit operating system. Either Mac OS X or Linux are currently supported.
 
 # Quick Install
-
-VarGeno requires the SDSL library. If you do not have it already installed, please use the following commands.
-
-```
-git clone https://github.com/simongog/sdsl-lite.git
-cd sdsl-lite
-./install.sh
-```
-This installs the sdsl library into the `include` and `lib` directories in your home directory.
-
-To install VarGeno itself,
-
 ```
 git clone https://github.com/medvedevgroup/vargeno.git
 cd vargeno
-make all
+export PREFIX=$HOME
+bash ./install.sh
 ```
-You should then see `vargeno`, `gbf` in vargeno directory. To verify that your installation is correct, you can run the toy example below. 
+You should then see `vargeno` in vargeno directory. To verify that your installation is correct, you can run the toy example below. 
 
 # Quick Usage
 
