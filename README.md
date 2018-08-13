@@ -1,4 +1,4 @@
-# VarGeno in Dev
+# VarGeno
 Fase SNP genotyping tool for whole genome sequencing data and large SNP database.
 
 # Prerequisites
@@ -26,36 +26,24 @@ make all
 ```
 You should then see `vargeno`, `gbf` in vargeno directory. To verify that your installation is correct, you can run the toy example below. 
 
-To install VarGeno Lite version:
-```
-cd vargeno/vargeno_lite
-make all
-```
-You should then see `vargeno_lite`, `gbf_lite` in vargeno/vargeno_lite directory.
-
-
 # Quick Usage
 
 VarGeno takes as input:
 1. A reference genome sequence in FASTA file format.
-2. A list of SNPs to be genotyped. VCF file format and [UCSC text file format](http://genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_group=varRep&hgta_track=snp141Common&hgta_table=snp141Common&hgta_doSchema=describe+table+schema) are supported.
+2. A list of SNPs to be genotyped in VCF file format.
 3. Sequencing reads from the donor genome in FASTQ file format.
 
 Before genotyping an individual, you must construct indices for the reference and SNP list using the following commands:
 ```
-vargeno index ref.fa snp.txt index_prefix
+vargeno index ref.fa snp.vcf index_prefix
 ```
-
-If your SNP list to be genotyped is in VCF file format, the file extension should be `.vcf`. If the SNP list is in UCSC text file format, the file extension should be `.txt`.
 
 To perform the genotyping:
 ```
-vargeno geno index_prefix reads.fq ref.fa.chrlens output_filename
+vargeno geno index_prefix reads.fq snp.vcf output_filename
 ```
 
 Here `index_prefix` should be the same string as index generating.
-
-The use of VarGeno-Lite is similar, for detail usage and example, please refer to the README in `vargeno/vargeno_lite`.
 
 ## Output format: VCF
 
@@ -77,17 +65,24 @@ cd $VARGENO/test
 
 2. pre-process the reference and SNP list to generate indices:
 ```
-$VARGENO/vargeno index chr22.fa snp.txt test_prefix
+$VARGENO/vargeno index chr22.fa snp.vcf test_prefix
 ```
 
 3. genotype variants:
 ```
-$VARGENO/vargeno geno test_prefix reads.fq chr22.fa.chrlens genotype.out
+$VARGENO/vargeno geno test_prefix reads.fq snp.vcf genotyped.vcf
 ```
 
-# Experiments in paper
+# Memory Lite Version
 
-To repeat the experiments in our paper, please follow the instructions in [experiment.md](https://github.com/medvedevgroup/vargeno/blob/master/experiment/experiment.md) .
+To install VarGeno Lite version:
+```
+cd vargeno/vargeno_lite
+make all
+```
+You should then see `vargeno_lite`, `gbf_lite` in vargeno/vargeno_lite directory.
+
+For detail usage and example, please refer to the README in `vargeno/vargeno_lite`.
 
 # Citation
 
