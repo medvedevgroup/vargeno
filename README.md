@@ -1,4 +1,4 @@
-# VarGeno
+# VarGeno in Dev
 Fase SNP genotyping tool for whole genome sequencing data and large SNP database.
 
 # Prerequisites
@@ -57,14 +57,14 @@ Here `index_prefix` should be the same string as index generating.
 
 The use of VarGeno-Lite is similar, for detail usage and example, please refer to the README in `vargeno/vargeno_lite`.
 
-## Output format
+## Output format: VCF
 
-VarGeno variant genotyping output files contains 4 tab-separated fields for each SNP: 
+VarGeno's genotyping results are in the "FORMAT" column of VCF file.
 
-  1. chromosome id
-  2. genome position (1-based): The first two fields together uniquely identify a SNP in the input SNP list.
-  3. genotypes: `0/0`, `0/1` or `1/1` 
-  4. quality score in [0,1]: higher quality score means more confident genotyping result
+  1. genotypes: in "GT" field: `0/0`, `0/1` or `1/1`.
+  2. genotype quality: in "GQ" field, encoded as a phred quality (Integer).
+
+For details of "GT" and "GQ" fields, please refer to [The Variant Call Format(VCF) Version 4.2 Specification](https://samtools.github.io/hts-specs/VCFv4.2.pdf).
 
 # Example
 
