@@ -75,14 +75,7 @@ $VARGENO/vargeno geno test_prefix reads.fq snp.vcf genotyped.vcf
 
 # Memory Lite Version
 
-To install VarGeno Lite version:
-```
-cd vargeno/vargeno_lite
-make all
-```
-You should then see `vargeno_lite`, `gbf_lite` in vargeno/vargeno_lite directory.
-
-For detail usage and example, please refer to the README in `vargeno/vargeno_lite`.
+The memory lite version of VarGeno (VarGeno-Lite) is maintained as an independent project in [https://github.com/medvedevgroup/vargeno_lite](https://github.com/medvedevgroup/vargeno_lite).
 
 # Citation
 
