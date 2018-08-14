@@ -1,19 +1,12 @@
 # VarGeno
 Fase SNP genotyping tool for whole genome sequencing data and large SNP database.
 
-# Prerequisites
-- A modern, C++11 ready compiler, such as `g++` version 4.9 or higher.
-- The cmake build system (*only necessary to install SDSL library. If SDSL library already installed, cmake is not needed*)
-- A 64-bit operating system. Either Mac OS X or Linux are currently supported.
+# Install from Bioconda
+VarGeno can be installed from Bioconda with command `conda install vargeno`.
 
-# Quick Install
-```
-git clone https://github.com/medvedevgroup/vargeno.git
-cd vargeno
-export PREFIX=$HOME
-bash ./install.sh
-```
-You should then see `vargeno` in vargeno directory. To verify that your installation is correct, you can run the toy example below. 
+Go to [this link](https://bioconda.github.io/#using-bioconda) for more information about Bioconda.
+
+If you do not have Bioconda installed, you can [install VarGeno from source code](#install-from-source-code).
 
 # Quick Usage
 
@@ -43,23 +36,38 @@ VarGeno's genotyping results are in the "FORMAT" column of VCF file.
 
 For details of "GT" and "GQ" fields, please refer to [The Variant Call Format(VCF) Version 4.2 Specification](https://samtools.github.io/hts-specs/VCFv4.2.pdf).
 
+# Install from Source Code
+
+### Prerequisites
+- A modern, C++11 ready compiler, such as `g++` version 4.9 or higher.
+- The cmake build system (*only necessary to install SDSL library. If SDSL library already installed, cmake is not needed*)
+- A 64-bit operating system. Either Mac OS X or Linux are currently supported.
+
+### Install Command
+```
+git clone https://github.com/medvedevgroup/vargeno.git
+cd vargeno
+export PREFIX=$HOME
+bash ./install.sh
+```
+You should then see `vargeno` in vargeno directory. To verify that your installation is correct, you can run the toy example below. 
+
 # Example
 
-In this example, we genotype 100 SNPs on human chromosome 22 with a small subset of 1000 Genome Project Illumina sequencing reads. The whole process should finish in around a minute and requries 34 GB RAM. Suppose VarGeno is installed in directory `$VARGENO`.
+The example dataset is in [https://github.com/medvedevgroup/vargeno/tree/master/test](https://github.com/medvedevgroup/vargeno/tree/master/test) .
+
+In this example, we genotype 100 SNPs on human chromosome 22 with a small subset of 1000 Genome Project Illumina sequencing reads. The whole process should finish in around a minute and requries 34 GB RAM.
 
 1. go to test data directory
-```
-cd $VARGENO/test
-```
 
 2. pre-process the reference and SNP list to generate indices:
 ```
-$VARGENO/vargeno index chr22.fa snp.vcf test_prefix
+vargeno index chr22.fa snp.vcf test_prefix
 ```
 
 3. genotype variants:
 ```
-$VARGENO/vargeno geno test_prefix reads.fq snp.vcf genotyped.vcf
+vargeno geno test_prefix reads.fq snp.vcf genotyped.vcf
 ```
 
 # Memory Lite Version
