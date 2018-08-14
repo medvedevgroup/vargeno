@@ -1889,7 +1889,7 @@ int main(const int argc, const char *argv[])
 {
 	if (argc < 2) {
 		print_help();
-		exit(EXIT_FAILURE);
+		return 0;
 	}
 
 	const char *opt = argv[1];
