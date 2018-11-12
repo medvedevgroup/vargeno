@@ -2342,7 +2342,11 @@ int main(const int argc, const char *argv[])
 	#undef CHRLENS_EXT
 
 			for (size_t i = 0; i < ref.size; i++) {
-				fprintf(chrlens, "%s %lu\n", ref.seqs[i].name, ref.seqs[i].size);
+				// This is necessary because the chromosome id from VCF is forced to start with chr
+				std::string seq_name (ref.seqs[i].name);
+				if(seq_name.compare(0, 3, "chr") != 0)
+					seq_name = "chr" + seq_name;
+				fprintf(chrlens, "%s %lu\n", seq_name.c_str(), ref.seqs[i].size);
 			}
 
 			fclose(chrlens);
