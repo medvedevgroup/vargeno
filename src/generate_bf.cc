@@ -44,7 +44,9 @@ int BFGenerator::readFasta(string & fasta_filename) {
 				genome_vector.emplace_back(genome);
 			}
 
-			id = line.substr(1);
+			// This is necessary to correctly manage headers containing additional information
+			id = split(line.substr(1), ' ')[0];
+
 			DNA_sequence.clear();
 		}
 		else {//  if (line[0] != '>'){ // not needed because implicit
