@@ -70,6 +70,8 @@ vargeno index chr22.fa snp.vcf test_prefix
 vargeno geno test_prefix reads.fq snp.vcf genotyped.vcf
 ```
 
+The expected output of VarGeno on the example dataset should be [https://github.com/medvedevgroup/vargeno/blob/master/test/expected_output](https://github.com/medvedevgroup/vargeno/blob/master/test/expected_output).
+
 # Memory Lite Version
 
 The memory lite version of VarGeno (VarGeno-Lite) is maintained as an independent project in [https://github.com/medvedevgroup/vargeno_lite](https://github.com/medvedevgroup/vargeno_lite).
