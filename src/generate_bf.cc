@@ -44,7 +44,13 @@ int BFGenerator::readFasta(string & fasta_filename) {
 				genome_vector.emplace_back(genome);
 			}
 
-			id = line.substr(1);
+			// This is necessary to correctly manage headers containing additional information
+			id = split(line.substr(1), ' ')[0];
+
+			// This is necessary because the chromosome id from VCF is forced to start with chr
+			if(id.compare(0, 3, "chr") != 0)
+			  id = "chr" + id;
+
 			DNA_sequence.clear();
 		}
 		else {//  if (line[0] != '>'){ // not needed because implicit

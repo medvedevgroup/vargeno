@@ -11,12 +11,12 @@ INCDIR = .
 ################################# for bloom filter code #################################
 CXX=g++
 # directory of sdsl library.so
-SDSL_PATH=$(PREFIX)/lib
+SDSL_PATH=./sdsl-lite/COMPILED/lib
 # also requires head file of roaring, sdsl, jellyfish, tclap in ~/include
-CXXFLAGS= -std=c++11 -Wall -O3 -I$(PREFIX)/include
+CXXFLAGS= -std=c++11 -Wall -O3 -I./sdsl-lite/COMPILED/include
 
 LD_LIB=-L $(SDSL_PATH)
-LD_FLAG=-lsdsl -ldivsufsort -ldivsufsort64 
+LD_FLAG=-lsdsl -ldivsufsort -ldivsufsort64
 
 ################################ end bloom filter def ##################################
 
